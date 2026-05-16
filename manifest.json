@@ -2,7 +2,7 @@
   "name": "Nachhilfe.",
   "short_name": "Nachhilfe",
   "description": "Nachhilfe-Tracker",
-  "start_url": "/",
+  "start_url": "/NachhilfeTracker/",
   "display": "standalone",
   "background_color": "#262624",
   "theme_color": "#262624",
