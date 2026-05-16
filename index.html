@@ -635,41 +635,45 @@
   }
 
   // --- DB operations ---
+  async function dbRun(promise) {
+    const { error } = await promise;
+    if (error) console.error('[DB Error]', error.message, error);
+  }
   async function dbAddStudent(student) {
-    await sb.from('students').insert({
+    await dbRun(sb.from('students').insert({
       id: student.id, user_id: currentUser.id,
       name: student.name, rate: student.rate, adresse: student.adresse || null
-    });
+    }));
   }
   async function dbUpdateStudent(student) {
-    await sb.from('students').update({
+    await dbRun(sb.from('students').update({
       name: student.name, rate: student.rate, adresse: student.adresse || null
-    }).eq('id', student.id);
+    }).eq('id', student.id));
   }
   async function dbDeleteStudent(id) {
-    await sb.from('students').delete().eq('id', id);
+    await dbRun(sb.from('students').delete().eq('id', id));
   }
   async function dbAddSession(session) {
-    await sb.from('sessions').insert({
+    await dbRun(sb.from('sessions').insert({
       id: session.id, user_id: currentUser.id, student_id: session.studentId,
       date: session.date, duration: session.duration, rate: session.rate,
       paid: session.paid || false, abgerechnet: session.abgerechnet || false,
       anfahrt: session.anfahrt || false
-    });
+    }));
   }
   async function dbUpdateSession(session) {
-    await sb.from('sessions').update({
+    await dbRun(sb.from('sessions').update({
       paid: session.paid, abgerechnet: session.abgerechnet || false
-    }).eq('id', session.id);
+    }).eq('id', session.id));
   }
   async function dbDeleteSession(id) {
-    await sb.from('sessions').delete().eq('id', id);
+    await dbRun(sb.from('sessions').delete().eq('id', id));
   }
   async function dbMarkAbgerechnet(sessionIds) {
-    await sb.from('sessions').update({ abgerechnet: true }).in('id', sessionIds);
+    await dbRun(sb.from('sessions').update({ abgerechnet: true }).in('id', sessionIds));
   }
   async function dbSaveSettings() {
-    await sb.from('settings').upsert({ user_id: currentUser.id, iban: settings.iban });
+    await dbRun(sb.from('settings').upsert({ user_id: currentUser.id, iban: settings.iban }));
   }
 
   // --- Utils ---
