@@ -108,11 +108,17 @@
   .filter-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; margin-top: 4px; }
   .filter-scroll {
     flex: 1; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
-    -webkit-overflow-scrolling: touch; padding: 2px 0;
-    mask-image: linear-gradient(to right, black calc(100% - 20px), transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, black calc(100% - 20px), transparent 100%);
+    -webkit-overflow-scrolling: touch; padding: 2px 24px 2px 0;
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
   }
   .filter-scroll::-webkit-scrollbar { display: none; }
+  @media (min-width: 560px) {
+    .filter-scroll {
+      overflow: visible; mask-image: none; -webkit-mask-image: none;
+      padding-right: 0; flex-wrap: wrap;
+    }
+  }
   .chip {
     flex-shrink: 0; background: var(--surface); color: var(--text);
     padding: 8px 14px; border-radius: 100px; font-size: 14px; font-weight: 500;
@@ -297,6 +303,39 @@
   .copy-success { display: none; text-align: center; color: var(--green); font-size: 13px; font-weight: 600; padding: 8px 0 0; }
   .copy-success.visible { display: block; }
 
+  /* Select input */
+  .select-input {
+    background: var(--surface); border: 1px solid transparent;
+    border-radius: 12px; padding: 13px 10px; color: var(--text);
+    font-size: 16px; font-family: inherit; outline: none;
+    -webkit-appearance: none; appearance: none;
+    transition: border-color 0.15s ease;
+    color-scheme: dark;
+  }
+  .select-input:focus { border-color: var(--accent); }
+
+  /* Pdf session row */
+  .pdf-session-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+    padding: 12px 14px; background: var(--surface); border-radius: 12px;
+    cursor: pointer; transition: background 0.15s ease;
+    border: 1px solid transparent; user-select: none;
+  }
+  .pdf-session-row:active { background: var(--surface-hover); }
+  .pdf-session-row.checked { border-color: var(--accent); }
+  .pdf-check {
+    width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--muted);
+    background: transparent; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.15s ease;
+  }
+  .pdf-session-row.checked .pdf-check { background: var(--accent); border-color: var(--accent); }
+  .pdf-check svg { display: none; }
+  .pdf-session-row.checked .pdf-check svg { display: block; }
+  .pdf-session-info { flex: 1; min-width: 0; }
+  .pdf-session-date { font-size: 14px; font-weight: 500; }
+  .pdf-session-meta { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .pdf-session-amount { font-family: var(--serif); font-size: 17px; font-weight: 500; flex-shrink: 0; }
+
   /* Logout separator */
   .settings-sep { height: 1px; background: var(--sep); margin: 20px 0 0; }
 </style>
@@ -381,8 +420,7 @@
       </div>
       <div class="student-detail-actions">
         <button class="detail-btn" id="detailEditBtn">Bearbeiten</button>
-        <button class="detail-btn" id="detailInvoiceBtn">Text</button>
-        <button class="detail-btn primary" id="detailPdfBtn">Rechnung laden</button>
+        <button class="detail-btn primary" id="detailPdfBtn">PDF Rechnung</button>
       </div>
     </div>
 
@@ -476,6 +514,34 @@
     <div class="modal-actions">
       <button class="btn btn-primary" id="copyInvoiceBtn">Kopieren</button>
       <button class="btn btn-secondary" id="closeInvoiceBtn">Schließen</button>
+    </div>
+  </div>
+
+  <!-- Modal: PDF Rechnung erstellen -->
+  <div class="modal" id="pdfInvoiceModal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title">PDF Rechnung</h2>
+    <div class="modal-subtitle">Einheiten auswählen und Rechnung öffnen</div>
+    <div class="field-label">Empfänger</div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <select id="pdfAnrede" class="select-input" style="flex:0 0 90px">
+        <option value="">–</option>
+        <option value="Frau">Frau</option>
+        <option value="Herr">Herr</option>
+      </select>
+      <input type="text" id="pdfEmpfaenger" placeholder="Name des Empfängers" style="flex:1" autocomplete="off">
+    </div>
+    <div class="field-label" style="margin-top:18px">Rechnungsnummer</div>
+    <input type="text" id="pdfRechnungsNr" autocomplete="off">
+    <div class="field-label" style="margin-top:18px">Einheiten</div>
+    <div id="pdfSessionList"></div>
+    <div style="margin-top:10px;padding:13px 14px;background:var(--surface);border-radius:12px;display:flex;justify-content:space-between;align-items:center">
+      <span style="color:var(--muted);font-size:13px" id="pdfSumLabel">0 Einheiten ausgewählt</span>
+      <span style="font-family:var(--serif);font-size:20px;font-weight:500;letter-spacing:-0.02em" id="pdfSumAmount">0 €</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="generatePdfBtn">Rechnung öffnen</button>
+      <button class="btn btn-secondary" id="cancelPdfInvoiceBtn">Abbrechen</button>
     </div>
   </div>
 
@@ -1160,9 +1226,21 @@ tbody td:last-child { text-align: right; }
     setTimeout(() => document.getElementById('settingsIban').focus(), 300);
   }
   document.getElementById('saveSettings').addEventListener('click', async () => {
-    settings.iban = document.getElementById('settingsIban').value.trim();
-    await dbSaveSettings();
-    hideModal('settingsModal');
+    const ibanVal = document.getElementById('settingsIban').value.trim();
+    settings.iban = ibanVal;
+    const btn = document.getElementById('saveSettings');
+    btn.textContent = 'Speichern…';
+    btn.disabled = true;
+    const { error } = await sb.from('settings').upsert({ user_id: currentUser.id, iban: ibanVal });
+    btn.disabled = false;
+    if (error) {
+      console.error('[Settings] IBAN save error:', error.message);
+      btn.textContent = 'Fehler – nochmal';
+      setTimeout(() => { btn.textContent = 'Speichern'; }, 2500);
+    } else {
+      btn.textContent = 'Gespeichert ✓';
+      setTimeout(() => { btn.textContent = 'Speichern'; hideModal('settingsModal'); }, 900);
+    }
   });
   document.getElementById('cancelSettings').addEventListener('click', () => hideModal('settingsModal'));
   document.getElementById('settingsBtn').addEventListener('click', openSettingsModal);
@@ -1193,15 +1271,12 @@ tbody td:last-child { text-align: right; }
   document.getElementById('detailEditBtn').addEventListener('click', () => {
     if (activeFilter !== 'all') openStudentModal(activeFilter);
   });
-  document.getElementById('detailInvoiceBtn').addEventListener('click', () => {
-    if (activeFilter !== 'all') openInvoiceModal(activeFilter);
-  });
   document.getElementById('detailPdfBtn').addEventListener('click', () => {
-    if (activeFilter !== 'all') generiereRechnung(activeFilter);
+    if (activeFilter !== 'all') openPdfInvoiceModal(activeFilter);
   });
 
   // --- Modal helpers ---
-  const ALL_MODALS = ['sessionModal', 'studentModal', 'settingsModal', 'invoiceModal'];
+  const ALL_MODALS = ['sessionModal', 'studentModal', 'settingsModal', 'invoiceModal', 'pdfInvoiceModal'];
   function showModal(id) {
     document.getElementById('overlay').classList.add('visible');
     document.getElementById(id).classList.add('visible');
@@ -1218,9 +1293,25 @@ tbody td:last-child { text-align: right; }
   document.getElementById('fab').addEventListener('click', openSessionModal);
   document.getElementById('addStudentBtn').addEventListener('click', () => openStudentModal());
 
-  document.getElementById('filterScroll').addEventListener('wheel', e => {
-    if (e.deltaY !== 0) { e.preventDefault(); e.currentTarget.scrollLeft += e.deltaY; }
-  }, { passive: false });
+  (function() {
+    const el = document.getElementById('filterScroll');
+    el.addEventListener('wheel', e => {
+      if (e.deltaY !== 0) { e.preventDefault(); el.scrollLeft += e.deltaY; }
+    }, { passive: false });
+    let startX, startScroll, dragging = false;
+    el.addEventListener('mousedown', e => {
+      dragging = true; startX = e.pageX; startScroll = el.scrollLeft;
+      el.style.cursor = 'grabbing'; el.style.userSelect = 'none';
+    });
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      el.scrollLeft = startScroll - (e.pageX - startX);
+    });
+    window.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false; el.style.cursor = ''; el.style.userSelect = '';
+    });
+  })();
 
   // --- Auth UI ---
   function updateAuthMode() {
@@ -1254,6 +1345,275 @@ tbody td:last-child { text-align: right; }
   document.getElementById('loginPassword').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('loginBtn').click();
   });
+
+  // --- PDF Invoice ---
+  const PDF_STAMM = {
+    name: 'Balthasar Beyer', ort: 'Ebenhausen', email: 'balthasarbeyer@gmail.com',
+    kontoinhaber: 'Balthasar Beyer', iban: 'DE89 7005 4306 0011 5083 22', bic: 'BYLADEM1WOR',
+  };
+  const MONATE_LANG = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+  function isoToDisplay(iso) {
+    const [y, m, d] = iso.split('-');
+    return `${d}.${m}.${y}`;
+  }
+
+  function formatDateLong(d) {
+    return `${d.getDate()}. ${MONATE_LANG[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  function computeLeistungszeitraum(sortedIso) {
+    if (!sortedIso.length) return '';
+    const first = new Date(sortedIso[0] + 'T00:00:00');
+    const last = new Date(sortedIso[sortedIso.length - 1] + 'T00:00:00');
+    if (first.getTime() === last.getTime()) return `${first.getDate()}. ${MONATE_LANG[first.getMonth()]} ${first.getFullYear()}`;
+    if (first.getMonth() === last.getMonth() && first.getFullYear() === last.getFullYear())
+      return `${first.getDate()}.–${last.getDate()}. ${MONATE_LANG[last.getMonth()]} ${last.getFullYear()}`;
+    return `${first.getDate()}. ${MONATE_LANG[first.getMonth()]} – ${last.getDate()}. ${MONATE_LANG[last.getMonth()]} ${last.getFullYear()}`;
+  }
+
+  function getNextRechnungsNummerPreview() {
+    const year = new Date().getFullYear();
+    let counter = 0;
+    try {
+      const raw = localStorage.getItem(INVOICE_COUNTER_KEY);
+      if (raw) { const p = JSON.parse(raw); if (p.year === year) counter = p.counter; }
+    } catch (e) {}
+    return `${year}-${String(counter + 1).padStart(3, '0')}`;
+  }
+
+  function consumeRechnungsNr(nr) {
+    try {
+      const parts = nr.split('-');
+      const year = new Date().getFullYear();
+      if (parseInt(parts[0], 10) === year) {
+        const counter = parseInt(parts[1], 10);
+        if (!isNaN(counter)) {
+          let cur = 0;
+          const raw = localStorage.getItem(INVOICE_COUNTER_KEY);
+          if (raw) { const p = JSON.parse(raw); if (p.year === year) cur = p.counter; }
+          if (counter > cur) localStorage.setItem(INVOICE_COUNTER_KEY, JSON.stringify({ year, counter }));
+        }
+      }
+    } catch (e) {}
+  }
+
+  function generateInvoiceHtml({ rechnungsNr, anrede, empfaenger, schueler, selectedSessions }) {
+    const today = new Date();
+    const faellig = new Date(today); faellig.setDate(faellig.getDate() + 14);
+    const rechnungsdatum = formatDateLong(today);
+    const faelligBis = formatDateLong(faellig);
+
+    const sorted = [...selectedSessions].sort((a, b) => a.date < b.date ? -1 : 1);
+    const leistungszeitraum = computeLeistungszeitraum(sorted.map(s => s.date));
+    const lastDate = new Date(sorted[sorted.length - 1].date + 'T00:00:00');
+    const monatJahr = `${MONATE_LANG[lastDate.getMonth()]} ${lastDate.getFullYear()}`;
+
+    function fmtEuro(cents) {
+      return (cents / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    }
+    const rows = sorted.map(s => ({
+      datum: isoToDisplay(s.date),
+      minuten: s.duration,
+      rate: s.rate,
+      betragCents: Math.round((s.duration / 60) * s.rate * 100),
+    }));
+    const gesamtCents = rows.reduce((sum, r) => sum + r.betragCents, 0);
+    const gesamtMin = rows.reduce((sum, r) => sum + r.minuten, 0);
+    const anzahl = rows.length;
+
+    const tableRows = rows.map(r => `
+      <tr>
+        <td>${r.datum}</td>
+        <td>Nachhilfe – ${escapeHtml(schueler)}</td>
+        <td class="r">${r.minuten} Min</td>
+        <td class="r">${r.rate} €/h</td>
+        <td class="r">${fmtEuro(r.betragCents)}</td>
+      </tr>`).join('');
+
+    const anredeBlock = anrede
+      ? `<div style="color:#555;font-size:10.5pt;">${escapeHtml(anrede)}</div>`
+      : '';
+
+    return `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rechnung ${escapeHtml(rechnungsNr)}</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system,"Helvetica Neue",Arial,sans-serif; font-size: 10.5pt; color: #1a1a1a; background: white; padding: 52px 62px 60px; }
+  @media screen { body { max-width: 760px; margin: 0 auto; } }
+  .hdr { font-size: 9pt; color: #999; margin-bottom: 34px; }
+  .recipient { margin-bottom: 30px; }
+  .recipient .name { font-weight: 600; font-size: 11pt; }
+  .recipient .sub { color: #555; font-size: 10pt; margin-top: 2px; }
+  .inv-title { font-size: 21pt; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 7px; }
+  .inv-meta { font-size: 9pt; color: #999; margin-bottom: 28px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { font-weight: 700; font-size: 10pt; padding: 8px 6px; border-top: 1.5px solid #ccc; border-bottom: 1.5px solid #ccc; text-align: left; }
+  thead th.r { text-align: right; }
+  tbody tr td { padding: 7px 6px; font-size: 10pt; border-bottom: 1px solid #ebebeb; }
+  td.r { text-align: right; }
+  .gesamt-row td { padding: 9px 6px; font-size: 10pt; color: #999; border-top: 1.5px solid #ccc; border-bottom: none; }
+  .gesamt-row td.r { color: #1a1a1a; font-weight: 700; text-align: right; }
+  .total-section { text-align: right; margin-top: 22px; margin-bottom: 5px; }
+  .total-section .label { font-weight: 700; font-size: 12pt; margin-right: 4px; }
+  .total-section .amount { font-weight: 700; font-size: 12pt; }
+  .ust { text-align: right; font-size: 8.5pt; color: #999; margin-bottom: 44px; }
+  hr { border: none; border-top: 1px solid #bbb; margin-bottom: 18px; }
+  .bank { font-size: 10pt; line-height: 1.75; }
+  .bank-title { font-weight: 700; margin-bottom: 3px; }
+  .print-btn {
+    position: fixed; top: 16px; right: 16px; background: #1a1a1a; color: white;
+    border: none; padding: 11px 20px; border-radius: 9px; font-size: 14px;
+    font-family: inherit; cursor: pointer; font-weight: 600;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.25); z-index: 100;
+  }
+  @media print { .print-btn { display: none; } }
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">Drucken / Als PDF</button>
+<div class="hdr">${PDF_STAMM.name} &nbsp;&middot;&nbsp; ${PDF_STAMM.ort} &nbsp;&middot;&nbsp; ${PDF_STAMM.email}</div>
+<div class="recipient">
+  ${anredeBlock}
+  <div class="name">${escapeHtml(empfaenger)}</div>
+  <div class="sub">Sch&uuml;ler: ${escapeHtml(schueler)}</div>
+</div>
+<div class="inv-title">Rechnung Nr.&nbsp;${escapeHtml(rechnungsNr)}</div>
+<div class="inv-meta">
+  <span>Datum: ${rechnungsdatum}</span> &nbsp;&middot;&nbsp; <span>Leistungszeitraum: ${leistungszeitraum}</span>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th>Datum</th><th>Beschreibung</th><th class="r">Dauer</th><th class="r">Satz</th><th class="r">Betrag</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${tableRows}
+    <tr class="gesamt-row">
+      <td></td>
+      <td>Gesamt (${anzahl} Einheiten&nbsp;/&nbsp;${gesamtMin} Min)</td>
+      <td></td><td></td>
+      <td class="r">${fmtEuro(gesamtCents)}</td>
+    </tr>
+  </tbody>
+</table>
+<div class="total-section">
+  <span class="label">Gesamtbetrag:</span>
+  <span class="amount">${fmtEuro(gesamtCents)}</span>
+</div>
+<div class="ust">Gem&auml;&szlig; &sect;19 UStG wird keine Umsatzsteuer berechnet.</div>
+<hr>
+<div class="bank">
+  <div class="bank-title">Bankverbindung:</div>
+  <div>Kontoinhaber: ${PDF_STAMM.kontoinhaber}</div>
+  <div>IBAN: ${PDF_STAMM.iban}</div>
+  <div>BIC: ${PDF_STAMM.bic}</div>
+  <div>Verwendungszweck: ${escapeHtml(schueler)} ${escapeHtml(monatJahr)}</div>
+  <div>Bitte &uuml;berweisen bis: <strong>${faelligBis}</strong></div>
+</div>
+</body>
+</html>`;
+  }
+
+  let pdfSelectedIds = new Set();
+  let pdfCurrentStudentId = null;
+
+  function openPdfInvoiceModal(studentId) {
+    pdfCurrentStudentId = studentId;
+    const st = studentById(studentId);
+    if (!st) return;
+
+    document.getElementById('pdfEmpfaenger').value = st.name;
+    document.getElementById('pdfAnrede').value = '';
+    document.getElementById('pdfRechnungsNr').value = getNextRechnungsNummerPreview();
+
+    const studentSessions = sessions
+      .filter(s => s.studentId === studentId)
+      .sort((a, b) => a.date < b.date ? 1 : -1);
+
+    // Pre-select all unpaid sessions
+    pdfSelectedIds = new Set(studentSessions.filter(s => !s.paid).map(s => s.id));
+
+    renderPdfSessionList(studentSessions);
+    updatePdfSum(studentSessions);
+    showModal('pdfInvoiceModal');
+  }
+
+  function renderPdfSessionList(studentSessions) {
+    const list = document.getElementById('pdfSessionList');
+    list.innerHTML = '';
+    if (!studentSessions.length) {
+      list.innerHTML = '<div class="empty" style="padding:20px 0"><div>Keine Einheiten vorhanden.</div></div>';
+      return;
+    }
+    studentSessions.forEach(s => {
+      const checked = pdfSelectedIds.has(s.id);
+      const amount = sessionAmount(s);
+      const statusBadge = s.paid
+        ? '<span style="color:var(--green);font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-left:5px">Bezahlt</span>'
+        : '';
+      const row = document.createElement('div');
+      row.className = 'pdf-session-row' + (checked ? ' checked' : '');
+      row.innerHTML = `
+        <div class="pdf-check">
+          <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+            <path d="M1 5L4.5 8.5L11 1.5" stroke="#1a1a18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="pdf-session-info">
+          <div class="pdf-session-date">${formatDate(s.date)}${statusBadge}</div>
+          <div class="pdf-session-meta">${s.duration} Min &middot; ${s.rate} €/h${s.anfahrt ? ' · +Anfahrt' : ''}</div>
+        </div>
+        <div class="pdf-session-amount">${formatEuro(amount)}</div>`;
+      row.addEventListener('click', () => {
+        if (pdfSelectedIds.has(s.id)) pdfSelectedIds.delete(s.id);
+        else pdfSelectedIds.add(s.id);
+        row.classList.toggle('checked', pdfSelectedIds.has(s.id));
+        updatePdfSum(sessions.filter(x => x.studentId === pdfCurrentStudentId));
+      });
+      list.appendChild(row);
+    });
+  }
+
+  function updatePdfSum(studentSessions) {
+    const sel = studentSessions.filter(s => pdfSelectedIds.has(s.id));
+    const sum = sel.reduce((t, s) => t + sessionAmount(s), 0);
+    document.getElementById('pdfSumLabel').textContent = `${sel.length} Einheit${sel.length !== 1 ? 'en' : ''} ausgewählt`;
+    document.getElementById('pdfSumAmount').textContent = formatEuro(sum);
+  }
+
+  document.getElementById('generatePdfBtn').addEventListener('click', () => {
+    const st = studentById(pdfCurrentStudentId);
+    if (!st) return;
+    const selectedSessions = sessions.filter(s => pdfSelectedIds.has(s.id));
+    if (!selectedSessions.length) { alert('Bitte mindestens eine Einheit auswählen.'); return; }
+    const anrede = document.getElementById('pdfAnrede').value;
+    const empfaenger = document.getElementById('pdfEmpfaenger').value.trim() || st.name;
+    const rechnungsNr = document.getElementById('pdfRechnungsNr').value.trim() || getNextRechnungsNummerPreview();
+    consumeRechnungsNr(rechnungsNr);
+    const html = generateInvoiceHtml({ rechnungsNr, anrede, empfaenger, schueler: st.name, selectedSessions });
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    hideModal('pdfInvoiceModal');
+    const newWin = window.open(url, '_blank');
+    if (!newWin) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Rechnung_${rechnungsNr}_${st.name}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 8000);
+  });
+
+  document.getElementById('cancelPdfInvoiceBtn').addEventListener('click', () => hideModal('pdfInvoiceModal'));
 
   // --- Init ---
   async function init() {
