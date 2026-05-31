@@ -381,8 +381,8 @@
       </div>
       <div class="student-detail-actions">
         <button class="detail-btn" id="detailEditBtn">Bearbeiten</button>
-        <button class="detail-btn" id="detailInvoiceBtn">Text-Rechnung</button>
-        <button class="detail-btn primary" id="detailPdfBtn">PDF</button>
+        <button class="detail-btn" id="detailInvoiceBtn">Text</button>
+        <button class="detail-btn primary" id="detailPdfBtn">Rechnung laden</button>
       </div>
     </div>
 
@@ -709,7 +709,7 @@
   function buildInvoiceText(studentId) {
     const st = studentById(studentId);
     if (!st) return null;
-    const open = sessions.filter(s => s.studentId === studentId && !s.paid && !s.abgerechnet);
+    const open = sessions.filter(s => s.studentId === studentId && !s.paid);
     if (!open.length) return null;
     const sorted = [...open].sort((a, b) => a.date < b.date ? -1 : 1);
     const MONATE = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
@@ -745,7 +745,7 @@
   async function generiereRechnung(studentId) {
     const st = studentById(studentId);
     if (!st) return;
-    const invoiceSessions = sessions.filter(s => s.studentId === studentId && !s.abgerechnet && !s.paid);
+    const invoiceSessions = sessions.filter(s => s.studentId === studentId && !s.paid);
     if (!invoiceSessions.length) { alert('Keine offenen Einheiten vorhanden.'); return; }
 
     const rechnungsNr = getNextRechnungsNummer();
@@ -855,12 +855,15 @@ tbody td:last-child { text-align: right; }
 <div class="legal">Gem&auml;&szlig; &sect;19 UStG wird keine Umsatzsteuer berechnet. Diese Rechnung wurde von einer Privatperson ausgestellt.</div>
 </body></html>`;
 
-    invoiceSessions.forEach(s => { s.abgerechnet = true; });
-    await dbMarkAbgerechnet(invoiceSessions.map(s => s.id));
-    render();
-
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); win.document.title = `Rechnung Nr. ${rechnungsNr} · ${st.name}`; win.focus(); setTimeout(() => win.print(), 600); }
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Rechnung_${rechnungsNr}_${st.name}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
   async function openInvoiceModal(studentId) {
@@ -879,10 +882,6 @@ tbody td:last-child { text-align: right; }
     document.getElementById('invoiceModalSubtitle').textContent =
       `${result.sessions.length} Einheit${result.sessions.length !== 1 ? 'en' : ''} · ${formatEuro(result.total)}`;
     document.getElementById('copySuccess').classList.remove('visible');
-
-    result.sessions.forEach(s => { s.abgerechnet = true; });
-    await dbMarkAbgerechnet(result.sessions.map(s => s.id));
-    render();
 
     showModal('invoiceModal');
   }
@@ -904,7 +903,7 @@ tbody td:last-child { text-align: right; }
       const d = new Date(s.date + 'T00:00:00');
       if (d.getMonth() === month && d.getFullYear() === year) monthEarn += sessionAmount(s);
       totalMinutes += s.duration;
-      if (!s.paid && !s.abgerechnet) openSum += sessionAmount(s);
+      if (!s.paid) openSum += sessionAmount(s);
     });
     document.getElementById('statMonth').innerHTML = `${Math.round(monthEarn)}<span class="unit"> €</span>`;
     const h = totalMinutes / 60;
@@ -956,7 +955,7 @@ tbody td:last-child { text-align: right; }
     const st = studentById(activeFilter);
     if (!st) { card.classList.remove('visible'); return; }
     const openSum = sessions
-      .filter(s => s.studentId === activeFilter && !s.paid && !s.abgerechnet)
+      .filter(s => s.studentId === activeFilter && !s.paid)
       .reduce((sum, s) => sum + sessionAmount(s), 0);
     document.getElementById('detailName').textContent = st.name;
     document.getElementById('detailOpenAmount').textContent = formatEuro(openSum);
@@ -968,11 +967,11 @@ tbody td:last-child { text-align: right; }
     list.innerHTML = '';
     let items = [...sessions];
     if (activeFilter !== 'all') items = items.filter(s => s.studentId === activeFilter);
-    if (statusFilter === 'open') items = items.filter(s => !s.paid && !s.abgerechnet);
-    else if (statusFilter === 'paid') items = items.filter(s => s.paid || s.abgerechnet);
+    if (statusFilter === 'open') items = items.filter(s => !s.paid);
+    else if (statusFilter === 'paid') items = items.filter(s => s.paid);
 
     items.sort((a, b) => {
-      const order = s => (!s.paid && !s.abgerechnet) ? 0 : s.abgerechnet ? 1 : 2;
+      const order = s => s.paid ? 1 : 0;
       const diff = order(a) - order(b);
       if (diff !== 0) return diff;
       return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.createdAt || 0) - (a.createdAt || 0);
@@ -991,9 +990,9 @@ tbody td:last-child { text-align: right; }
       const el = document.createElement('div');
       el.className = 'session' + (expandedSessionId === s.id ? ' expanded' : '');
       const amount = sessionAmount(s);
-      const isOpen = !s.paid && !s.abgerechnet;
-      const statusClass = s.abgerechnet ? 'abgerechnet' : (s.paid ? 'paid' : 'open');
-      const statusText = s.abgerechnet ? 'Abgerechnet' : (s.paid ? 'Bezahlt' : 'Offen');
+      const isOpen = !s.paid;
+      const statusClass = s.paid ? 'paid' : 'open';
+      const statusText = s.paid ? 'Bezahlt' : 'Offen';
       const anfahrtTag = s.anfahrt ? ' · +Anfahrt' : '';
       el.innerHTML = `
         <div class="session-main">
@@ -1218,6 +1217,10 @@ tbody td:last-child { text-align: right; }
 
   document.getElementById('fab').addEventListener('click', openSessionModal);
   document.getElementById('addStudentBtn').addEventListener('click', () => openStudentModal());
+
+  document.getElementById('filterScroll').addEventListener('wheel', e => {
+    if (e.deltaY !== 0) { e.preventDefault(); e.currentTarget.scrollLeft += e.deltaY; }
+  }, { passive: false });
 
   // --- Auth UI ---
   function updateAuthMode() {
