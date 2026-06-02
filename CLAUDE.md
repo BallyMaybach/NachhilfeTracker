@@ -70,3 +70,10 @@ State: `students[]`, `sessions[]`, `settings`, `currentUser`. Nach jeder Mutatio
 - SW cached: `./`, `./index.html`, `./icon.png`, `./manifest.json`
 - **Wichtig:** Bei Asset-Änderungen Cache-Name in `sw.js` erhöhen (z.B. `nachhilfe-v2`), sonst bekommen Nutzer die alte Version aus dem Cache.
 - `safe-area-inset-*` CSS-Variablen für iPhone-Notch/Home-Indicator
+
+## AIOS
+
+Ballys AI Operating System liegt unter:
+`C:\Users\Bally\OneDrive\Desktop\BUSINESS\Bally Ordner\AI-OS-Bally`
+
+Dort liegen Skills, Connections, Context und alle Automatisierungen.
