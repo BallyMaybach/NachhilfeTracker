@@ -22,10 +22,10 @@ Kein Build, kein Bundler, keine Tests, kein npm. Eine Datei editieren (`index.ht
 Single-file PWA: alles in `index.html` (CSS im `<style>`-Block, JS im `<script>`-Block am Ende). Kein Build-System, keine Dependencies außer Supabase JS via CDN.
 
 **Seiten:** `#overviewPage` (Einheiten/CRM) + `#analyticsPage` (Statistik), umgeschaltet via `switchPage(page)` über `#statsBtn` (oben rechts) bzw. `#backToOverviewBtn`. Der FAB ist nur auf der Übersicht sichtbar. `renderAnalytics()` läuft in `render()` mit und berechnet alles client-seitig aus `sessions`:
-- **Umsatz-Linienchart** (Trade-Republic-Stil, SVG, `buildLineSVG` + `computeChartData`): Range-Tabs Tag/Monat/Jahr/Max (`chartRange`), Scrubbing per Pointer (`attachScrub` → liest `chartState`).
-- **Stunden pro Tag**: vertikales Balkendiagramm Mo–So der gewählten Woche, blätterbar via `weekOffset`.
+- **Kumulativer Umsatz-Chart** (Trade-Republic-Stil, SVG, `buildLineSVG` + `computeCumulative`): laufender Gesamtumsatz, Range-Tabs 1M/6M/1J/Max (`chartRange`), min/max-skaliert (nicht 0-Baseline) damit der Anstieg sichtbar ist. Scrubbing per Pointer (`attachScrub` → liest `chartState`). Headline = Gesamt verdient, Sub = Gewinn im Zeitraum.
+- **Verdienst pro Tag**: € pro Tag Mo–So der gewählten Woche (Screen-Time-Stil), blätterbar via `weekOffset`, Wochen-Gesamt in €.
 - **Top Schüler**: Ranking nach Umsatz für den gewählten Monat, blätterbar via `topMonthOffset`.
-- Mini-Stats: Ø Stundenlohn, Ø Std/Woche, diesen Monat, Einheiten gesamt.
+- KPI-Kacheln: Ø/Stunde, Ø/Einheit, Diesen Monat (+ Prognose Monatsende), Offen.
 Balken sind reines CSS (`.bar-chart`), der Linienchart ist Inline-SVG — keine Chart-Library.
 
 **Dauer im Session-Modal:** Presets 45/60/90/120/180 Min + Chip `data-duration="custom"` → blendet `#customDurationWrap` ein. State: `modalDuration` (Minuten), `customDurationMode` (bool).

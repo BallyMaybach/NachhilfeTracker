@@ -1077,54 +1077,67 @@ tbody td:last-child { text-align: right; }
     return d;
   }
 
-  let chartRange = 'monat';
+  let chartRange = 'max';
   let weekOffset = 0;
   let topMonthOffset = 0;
   const chartState = { xs: [], ys: [], W: 320, H: 120, buckets: [], total: 0, label: '' };
 
-  // Build the revenue buckets for the selected range
-  function computeChartData(range) {
-    const now = new Date();
-    const buckets = [];
-    if (range === 'tag') {
+  // Cumulative (running total) revenue over the selected window — Trade-Republic style
+  function computeCumulative(range) {
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const sorted = [...sessions].sort((a, b) => a.date < b.date ? -1 : 1);
+    function cumUpTo(iso) {
+      let t = 0;
+      for (const s of sorted) { if (s.date <= iso) t += sessionAmount(s); else break; }
+      return t;
+    }
+    const points = [];
+    let windowStartIso;
+    if (range === '1m') {
       for (let i = 29; i >= 0; i--) {
-        const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
-        buckets.push({ key: isoFromDate(d), value: 0, axis: `${d.getDate()}.${d.getMonth() + 1}.`, full: formatDateShort(isoFromDate(d)) });
+        const d = new Date(now); d.setDate(d.getDate() - i); const iso = isoFromDate(d);
+        points.push({ key: iso, value: cumUpTo(iso), axis: `${d.getDate()}.${d.getMonth() + 1}.`, full: formatDateShort(iso) });
       }
-      sessions.forEach(s => { const b = buckets.find(x => x.key === s.date); if (b) b.value += sessionAmount(s); });
-    } else if (range === 'jahr') {
-      const years = sessions.map(s => +s.date.slice(0, 4));
-      const minY = Math.min(...years), maxY = now.getFullYear();
-      for (let y = minY; y <= maxY; y++) buckets.push({ key: String(y), value: 0, axis: String(y), full: String(y) });
-      sessions.forEach(s => { const b = buckets.find(x => x.key === s.date.slice(0, 4)); if (b) b.value += sessionAmount(s); });
-    } else if (range === 'max') {
-      const sorted = [...sessions].sort((a, b) => a.date < b.date ? -1 : 1);
-      let d = new Date(sorted[0].date + 'T00:00:00'); d = new Date(d.getFullYear(), d.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth(), 1);
-      while (d <= end) {
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        buckets.push({ key, value: 0, axis: d.getMonth() === 0 ? `'${String(d.getFullYear()).slice(-2)}` : MONATE_SHORT[d.getMonth()], full: `${MONATE_LANG[d.getMonth()]} ${d.getFullYear()}` });
-        d.setMonth(d.getMonth() + 1);
+      windowStartIso = points[0].key;
+    } else if (range === '6m') {
+      for (let i = 25; i >= 0; i--) {
+        const d = new Date(now); d.setDate(d.getDate() - i * 7); const iso = isoFromDate(d);
+        points.push({ key: iso, value: cumUpTo(iso), axis: `${d.getDate()}.${d.getMonth() + 1}.`, full: formatDateShort(iso) });
       }
-      sessions.forEach(s => { const b = buckets.find(x => x.key === s.date.slice(0, 7)); if (b) b.value += sessionAmount(s); });
-    } else { // monat -> last 12 months
+      windowStartIso = points[0].key;
+    } else if (range === '1j') {
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        buckets.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, value: 0, axis: MONATE_SHORT[d.getMonth()], full: `${MONATE_LANG[d.getMonth()]} ${d.getFullYear()}` });
+        const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const iso = isoFromDate(last > now ? now : last);
+        points.push({ key: iso, value: cumUpTo(iso), axis: MONATE_SHORT[d.getMonth()], full: `${MONATE_LANG[d.getMonth()]} ${d.getFullYear()}` });
       }
-      sessions.forEach(s => { const b = buckets.find(x => x.key === s.date.slice(0, 7)); if (b) b.value += sessionAmount(s); });
+      windowStartIso = isoFromDate(new Date(now.getFullYear(), now.getMonth() - 11, 1));
+    } else { // max -> monthly from first session to now
+      const first = new Date(sorted[0].date + 'T00:00:00');
+      let d = new Date(first.getFullYear(), first.getMonth(), 1);
+      const endMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      while (d <= endMonth) {
+        const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const iso = isoFromDate(last > now ? now : last);
+        points.push({ key: iso, value: cumUpTo(iso), axis: d.getMonth() === 0 ? `'${String(d.getFullYear()).slice(-2)}` : MONATE_SHORT[d.getMonth()], full: `${MONATE_LANG[d.getMonth()]} ${d.getFullYear()}` });
+        d.setMonth(d.getMonth() + 1);
+      }
+      windowStartIso = sorted[0].date;
     }
-    return buckets;
+    return { points, windowStartIso };
   }
 
   function buildLineSVG(buckets) {
-    const W = 320, H = 120, padY = 8;
+    const W = 320, H = 120, padY = 10;
     const n = buckets.length;
-    const max = Math.max(...buckets.map(b => b.value), 1);
+    const vals = buckets.map(b => b.value);
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const span = (max - min) || 1;
     const xs = [], ys = [];
     buckets.forEach((b, i) => {
       xs.push(n === 1 ? W / 2 : (i / (n - 1)) * W);
-      ys.push(H - padY - (b.value / max) * (H - 2 * padY));
+      ys.push(H - padY - ((b.value - min) / span) * (H - 2 * padY));
     });
     chartState.xs = xs; chartState.ys = ys; chartState.W = W; chartState.H = H;
     const line = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(' ');
@@ -1203,35 +1216,39 @@ tbody td:last-child { text-align: right; }
     });
     const totalHours = totalMin / 60;
     const avgRate = totalHours > 0 ? totalRev / totalHours : 0;
-    const sortedDates = sessions.map(s => new Date(s.date + 'T00:00:00')).sort((a, b) => a - b);
-    const weeksSpan = Math.max(1, Math.ceil((now - sortedDates[0]) / (7 * 24 * 3600 * 1000)));
-    const avgHoursWeek = totalHours / weeksSpan;
+    const avgPerSession = sessions.length ? totalRev / sessions.length : 0;
+    let openSum = 0, openCount = 0;
+    sessions.forEach(s => { if (!s.paid) { openSum += sessionAmount(s); openCount++; } });
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const forecast = now.getDate() > 0 ? curRev / now.getDate() * daysInMonth : 0;
 
-    // --- Revenue chart ---
-    const buckets = computeChartData(chartRange);
-    chartState.buckets = buckets;
-    chartState.total = buckets.reduce((t, b) => t + b.value, 0);
-    chartState.label = { tag: 'Letzte 30 Tage', monat: 'Letzte 12 Monate', jahr: 'Umsatz pro Jahr', max: 'Gesamt' }[chartRange];
-    const svg = buildLineSVG(buckets);
-    const axisPts = buckets.length >= 3 ? [buckets[0], buckets[Math.floor(buckets.length / 2)], buckets[buckets.length - 1]] : buckets;
+    // --- Cumulative revenue chart ---
+    const { points, windowStartIso } = computeCumulative(chartRange);
+    chartState.buckets = points;
+    chartState.total = points.length ? points[points.length - 1].value : 0;
+    const gain = sessions.filter(s => s.date >= windowStartIso).reduce((t, s) => t + sessionAmount(s), 0);
+    const rangeWord = { '1m': '30 Tage', '6m': '6 Monate', '1j': '12 Monate', max: 'Gesamt' }[chartRange];
+    chartState.label = (chartRange !== 'max' && gain > 0) ? `+${fmtEuroRound(gain)} · ${rangeWord}` : 'Gesamt verdient';
+    const svg = buildLineSVG(points);
+    const axisPts = points.length >= 3 ? [points[0], points[Math.floor(points.length / 2)], points[points.length - 1]] : points;
     const axisHtml = axisPts.map(b => `<span>${b.axis}</span>`).join('');
-    const rangeTabs = [['tag', 'Tag'], ['monat', 'Monat'], ['jahr', 'Jahr'], ['max', 'Max']]
+    const rangeTabs = [['1m', '1M'], ['6m', '6M'], ['1j', '1J'], ['max', 'Max']]
       .map(([r, l]) => `<button class="range-tab ${chartRange === r ? 'active' : ''}" data-range="${r}">${l}</button>`).join('');
 
-    // --- Hours per day (selectable week) ---
+    // --- Earnings per day (selectable week, screen-time style) ---
     const monday = getMonday(weekOffset);
     const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6);
     const dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
     const days = [];
-    for (let i = 0; i < 7; i++) { const d = new Date(monday); d.setDate(d.getDate() + i); days.push({ key: isoFromDate(d), label: dayLabels[i], hours: 0 }); }
-    sessions.forEach(s => { const b = days.find(x => x.key === s.date); if (b) b.hours += s.duration / 60; });
-    const maxDayH = Math.max(...days.map(d => d.hours), 1);
+    for (let i = 0; i < 7; i++) { const d = new Date(monday); d.setDate(d.getDate() + i); days.push({ key: isoFromDate(d), label: dayLabels[i], eur: 0 }); }
+    sessions.forEach(s => { const b = days.find(x => x.key === s.date); if (b) b.eur += sessionAmount(s); });
+    const maxDayEur = Math.max(...days.map(d => d.eur), 1);
     const todayKey = todayISO();
-    const weekHours = days.reduce((t, d) => t + d.hours, 0);
+    const weekTotal = days.reduce((t, d) => t + d.eur, 0);
     const dayBars = days.map(d => {
-      const pct = d.hours > 0 ? Math.max(6, Math.round(d.hours / maxDayH * 100)) : 0;
-      return `<div class="bar-col ${d.hours === 0 ? 'is-empty' : ''} ${d.key === todayKey ? 'current' : ''}">
-        <div class="bar-val">${d.hours > 0 ? fmtHoursShort(d.hours) : '–'}</div>
+      const pct = d.eur > 0 ? Math.max(6, Math.round(d.eur / maxDayEur * 100)) : 0;
+      return `<div class="bar-col ${d.eur === 0 ? 'is-empty' : ''} ${d.key === todayKey ? 'current' : ''}">
+        <div class="bar-val">${d.eur > 0 ? fmtEuroRound(d.eur) : '–'}</div>
         <div class="bar-track"><div class="bar-fill" style="height:${pct}%"></div></div>
         <div class="bar-label">${d.label}</div>
       </div>`;
@@ -1277,27 +1294,27 @@ tbody td:last-child { text-align: right; }
       </div>
       <div class="mini-stats">
         <div class="mini-stat">
-          <div class="mini-label">Ø Stundenlohn</div>
+          <div class="mini-label">Ø / Stunde</div>
           <div class="mini-value">${formatEuro(Math.round(avgRate * 10) / 10).replace(' €', '')}<span class="unit"> €/h</span></div>
         </div>
         <div class="mini-stat">
-          <div class="mini-label">Ø pro Woche</div>
-          <div class="mini-value">${fmtHoursShort(avgHoursWeek)}<span class="unit"> h</span></div>
+          <div class="mini-label">Ø / Einheit</div>
+          <div class="mini-value">${fmtEuroRound(avgPerSession).replace(' €', '')}<span class="unit"> €</span></div>
         </div>
         <div class="mini-stat">
           <div class="mini-label">Diesen Monat</div>
-          <div class="mini-value">${fmtHoursShort(curMin / 60)}<span class="unit"> h</span></div>
-          <div class="mini-sub">${fmtEuroRound(curRev)}</div>
+          <div class="mini-value">${fmtEuroRound(curRev).replace(' €', '')}<span class="unit"> €</span></div>
+          <div class="mini-sub">Prognose ~${fmtEuroRound(forecast)}</div>
         </div>
         <div class="mini-stat">
-          <div class="mini-label">Einheiten gesamt</div>
-          <div class="mini-value">${sessions.length}</div>
-          <div class="mini-sub">${fmtHours(totalHours)}</div>
+          <div class="mini-label">Offen</div>
+          <div class="mini-value">${fmtEuroRound(openSum).replace(' €', '')}<span class="unit"> €</span></div>
+          <div class="mini-sub">${openCount} Einheit${openCount !== 1 ? 'en' : ''}</div>
         </div>
       </div>
       <div class="a-card">
         <div class="switch-head">
-          <div class="a-card-title" style="margin:0">Stunden pro Tag</div>
+          <div class="a-card-title" style="margin:0">Verdienst pro Tag</div>
           <div class="switcher">
             <button class="sw-btn" data-week="prev">‹</button>
             <span class="sw-label">${weekLabel}</span>
@@ -1305,7 +1322,7 @@ tbody td:last-child { text-align: right; }
           </div>
         </div>
         <div class="bar-chart">${dayBars}</div>
-        <div class="week-total">${weekHours > 0 ? 'Gesamt: ' + fmtHours(weekHours) : 'Keine Einheiten in dieser Woche'}</div>
+        <div class="week-total">${weekTotal > 0 ? 'Gesamt: ' + fmtEuroRound(weekTotal) : 'Keine Einheiten in dieser Woche'}</div>
       </div>
       <div class="a-card">
         <div class="switch-head">
