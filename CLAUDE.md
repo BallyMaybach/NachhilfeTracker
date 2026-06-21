@@ -4,13 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Projekt:** NachhilfeTracker
 - **Was es tut:** PWA zur Verwaltung von Nachhilfestunden, Einnahmen und Rechnungsgenerierung
-- **Stand:** Vollständig funktionsfähig — Auth, Sessions, Schüler, Statistiken, Text-Rechnungen, PDF-Rechnungen, Einstellungen
+- **Stand:** Vollständig funktionsfähig — Auth, Sessions, Schüler, Statistiken, Text-Rechnungen, PDF-Rechnungen, Einstellungen. Zwei Seiten: Übersicht + Statistik (Analytics), erreichbar über den Statistik-Button oben rechts neben den Einstellungen.
 - **Deployment:** GitHub Pages — `git push` auf `master` genügt. URL: https://ballymaybach.github.io/NachhilfeTracker/
 - **Design-Richtung:** Dark Mode, Standard-Palette aus globalem CLAUDE.md
+
+## Entwicklung
+
+Kein Build, kein Bundler, keine Tests, kein npm. Eine Datei editieren (`index.html`) und im Browser laden.
+
+- **Lokal testen:** `/host`-Skill oder beliebiger Static-Server (z. B. `python -m http.server`). **Nicht** via `file://` öffnen — Supabase-Auth braucht `http(s)://`.
+- **Deployen:** `git add . && git commit -m "..." && git push` auf `master`. GitHub Pages deployt automatisch, kein CI-Schritt.
+- **Nach Asset-/HTML-Änderung:** Cache-Namen in `sw.js` erhöhen (siehe PWA-Abschnitt), sonst sehen Nutzer die alte Version.
+- Beim Bearbeiten von `index.html` orientierst du dich an Zeilennummern — die Datei ist ~1960 Zeilen: `<style>` oben, Markup in der Mitte, `<script>` am Ende.
 
 ## Architektur
 
 Single-file PWA: alles in `index.html` (CSS im `<style>`-Block, JS im `<script>`-Block am Ende). Kein Build-System, keine Dependencies außer Supabase JS via CDN.
+
+**Seiten:** `#overviewPage` (Einheiten/CRM) + `#analyticsPage` (Statistik), umgeschaltet via `switchPage(page)` über `#statsBtn` (oben rechts) bzw. `#backToOverviewBtn`. Der FAB ist nur auf der Übersicht sichtbar. `renderAnalytics()` läuft in `render()` mit und berechnet alles client-seitig aus `sessions`:
+- **Umsatz-Linienchart** (Trade-Republic-Stil, SVG, `buildLineSVG` + `computeChartData`): Range-Tabs Tag/Monat/Jahr/Max (`chartRange`), Scrubbing per Pointer (`attachScrub` → liest `chartState`).
+- **Stunden pro Tag**: vertikales Balkendiagramm Mo–So der gewählten Woche, blätterbar via `weekOffset`.
+- **Top Schüler**: Ranking nach Umsatz für den gewählten Monat, blätterbar via `topMonthOffset`.
+- Mini-Stats: Ø Stundenlohn, Ø Std/Woche, diesen Monat, Einheiten gesamt.
+Balken sind reines CSS (`.bar-chart`), der Linienchart ist Inline-SVG — keine Chart-Library.
+
+**Dauer im Session-Modal:** Presets 45/60/90/120/180 Min + Chip `data-duration="custom"` → blendet `#customDurationWrap` ein. State: `modalDuration` (Minuten), `customDurationMode` (bool).
 
 ## Backend: Supabase
 

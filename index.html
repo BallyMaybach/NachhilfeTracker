@@ -338,6 +338,65 @@
 
   /* Logout separator */
   .settings-sep { height: 1px; background: var(--sep); margin: 20px 0 0; }
+
+  /* Header actions */
+  .header-actions { display: flex; gap: 8px; }
+
+  /* Analytics — revenue chart */
+  .chart-card { padding-bottom: 14px; }
+  .chart-readout { margin-bottom: 14px; min-height: 56px; }
+  .chart-value { font-family: var(--serif); font-size: 38px; font-weight: 500; letter-spacing: -0.02em; line-height: 1; }
+  .chart-sub { color: var(--muted); font-size: 13px; margin-top: 7px; }
+  .chart-wrap { position: relative; height: 140px; touch-action: none; cursor: crosshair; }
+  .rev-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .chart-guide { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(244,241,234,0.25); opacity: 0; pointer-events: none; transition: opacity 0.12s ease; }
+  .chart-dot { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2.5px solid var(--bg-elev); transform: translate(-50%, -50%); pointer-events: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+  .chart-xaxis { display: flex; justify-content: space-between; margin-top: 12px; }
+  .chart-xaxis span { font-size: 11px; color: var(--muted); }
+  .range-tabs { display: flex; gap: 4px; margin-top: 16px; background: var(--surface); padding: 4px; border-radius: 12px; }
+  .range-tab { flex: 1; background: none; border: none; color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 600; padding: 8px 4px; border-radius: 9px; cursor: pointer; transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease; }
+  .range-tab.active { background: var(--bg-elev); color: var(--text); }
+  .range-tab:active { transform: scale(0.97); }
+
+  /* Switcher (week / month) */
+  .switch-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+  .switcher { display: flex; align-items: center; gap: 5px; }
+  .sw-btn { width: 28px; height: 28px; border-radius: 8px; background: var(--surface); border: none; color: var(--text); font-size: 16px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; transition: background 0.15s ease, transform 0.1s ease; }
+  .sw-btn:active { transform: scale(0.9); }
+  .sw-btn:disabled { opacity: 0.3; cursor: default; }
+  .sw-label { font-size: 13px; font-weight: 600; color: var(--text); min-width: 96px; text-align: center; }
+  .week-total { text-align: center; color: var(--muted); font-size: 12px; margin-top: 14px; }
+
+  .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .mini-stat { background: var(--bg-elev); border: 1px solid var(--sep); border-radius: 16px; padding: 14px 16px; }
+  .mini-label { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; margin-bottom: 6px; }
+  .mini-value { font-family: var(--serif); font-size: 26px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.1; }
+  .mini-value .unit { font-size: 16px; color: var(--muted); margin-left: 1px; }
+  .mini-sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+  .a-card { background: var(--bg-elev); border: 1px solid var(--sep); border-radius: 18px; padding: 18px; margin-bottom: 12px; }
+  .a-card-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+
+  /* Vertical bar chart */
+  .bar-chart { display: flex; align-items: flex-end; gap: 7px; height: 150px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+  .bar-val { font-size: 10.5px; color: var(--muted); margin-bottom: 6px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bar-track { width: 100%; flex: 1; display: flex; align-items: flex-end; justify-content: center; }
+  .bar-fill { width: 100%; max-width: 30px; background: linear-gradient(180deg, var(--accent), rgba(217,119,87,0.45)); border-radius: 7px 7px 0 0; min-height: 4px; transition: height 0.5s cubic-bezier(0.32,0.72,0,1); }
+  .bar-col.is-empty .bar-fill { background: var(--surface); }
+  .bar-label { font-size: 11px; color: var(--muted); margin-top: 8px; }
+  .bar-col.current .bar-label { color: var(--accent); font-weight: 700; }
+
+  /* Ranking list */
+  .rank-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--sep); }
+  .rank-row:first-child { padding-top: 0; }
+  .rank-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .rank-badge { width: 26px; height: 26px; border-radius: 50%; background: var(--surface); color: var(--muted); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .rank-row.top .rank-badge { background: var(--accent); color: #1a1a18; }
+  .rank-info { flex: 1; min-width: 0; }
+  .rank-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .rank-meta { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .rank-amount { font-family: var(--serif); font-size: 18px; font-weight: 500; letter-spacing: -0.02em; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -372,18 +431,26 @@
 <!-- Main App -->
 <div id="mainApp" style="display:none">
   <div class="app">
+    <div class="page" id="overviewPage">
     <header class="header">
       <div class="header-top">
         <div>
           <h1 class="title">Nachhilfe<span class="dot">.</span></h1>
           <div class="subtitle">Deine Einheiten und Einnahmen</div>
         </div>
-        <button class="settings-btn" id="settingsBtn" aria-label="Einstellungen">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-        </button>
+        <div class="header-actions">
+          <button class="settings-btn" id="statsBtn" aria-label="Statistik">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-6"/><path d="M22 21H2"/>
+            </svg>
+          </button>
+          <button class="settings-btn" id="settingsBtn" aria-label="Einstellungen">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -426,6 +493,24 @@
 
     <div class="section-title">Einheiten</div>
     <div class="sessions" id="sessionsList"></div>
+    </div>
+
+    <div class="page" id="analyticsPage" style="display:none">
+      <header class="header">
+        <div class="header-top">
+          <div>
+            <h1 class="title">Statistik<span class="dot">.</span></h1>
+            <div class="subtitle">Wie sich dein Business entwickelt</div>
+          </div>
+          <button class="settings-btn" id="backToOverviewBtn" aria-label="Zurück">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+      <div id="analyticsContent"></div>
+    </div>
   </div>
 
   <button class="fab" id="fab" aria-label="Neue Einheit">
@@ -450,9 +535,15 @@
     <div class="field-label">Dauer</div>
     <div class="duration-chips" id="durationChips">
       <button class="chip" data-duration="45">45 Min</button>
-      <button class="chip active" data-duration="60">60 Min</button>
-      <button class="chip" data-duration="90">90 Min</button>
-      <button class="chip" data-duration="120">120 Min</button>
+      <button class="chip active" data-duration="60">1 Std</button>
+      <button class="chip" data-duration="90">1,5 Std</button>
+      <button class="chip" data-duration="120">2 Std</button>
+      <button class="chip" data-duration="180">3 Std</button>
+      <button class="chip" data-duration="custom">Benutzerdef.</button>
+    </div>
+    <div class="input-wrap" id="customDurationWrap" style="display:none;margin-top:10px">
+      <input type="number" id="customDurationInput" inputmode="numeric" min="1" step="1" placeholder="z. B. 75">
+      <span class="suffix">Min</span>
     </div>
     <div class="field-row">
       <div>
@@ -586,7 +677,11 @@
   let currentInvoiceText = '';
   let modalStudentId = null;
   let modalDuration = 60;
+  let customDurationMode = false;
   let modalRate = 20;
+  let currentPage = 'overview';
+
+  const MONATE_SHORT = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
   let migrationAttempted = false;
   let isSignupMode = false;
 
@@ -959,6 +1054,278 @@ tbody td:last-child { text-align: right; }
     renderStatusFilter();
     renderStudentDetail();
     renderSessions();
+    renderAnalytics();
+  }
+
+  function fmtHours(h) {
+    return (Number.isInteger(h) ? h : h.toFixed(1).replace('.', ',')) + ' h';
+  }
+  function fmtEuroRound(n) {
+    return Math.round(n).toLocaleString('de-DE') + ' €';
+  }
+
+  function fmtHoursShort(h) {
+    return Number.isInteger(h) ? String(h) : h.toFixed(1).replace('.', ',');
+  }
+  function isoFromDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  function getMonday(offsetWeeks) {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day) + offsetWeeks * 7);
+    return d;
+  }
+
+  let chartRange = 'monat';
+  let weekOffset = 0;
+  let topMonthOffset = 0;
+  const chartState = { xs: [], ys: [], W: 320, H: 120, buckets: [], total: 0, label: '' };
+
+  // Build the revenue buckets for the selected range
+  function computeChartData(range) {
+    const now = new Date();
+    const buckets = [];
+    if (range === 'tag') {
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
+        buckets.push({ key: isoFromDate(d), value: 0, axis: `${d.getDate()}.${d.getMonth() + 1}.`, full: formatDateShort(isoFromDate(d)) });
+      }
+      sessions.forEach(s => { const b = buckets.find(x => x.key === s.date); if (b) b.value += sessionAmount(s); });
+    } else if (range === 'jahr') {
+      const years = sessions.map(s => +s.date.slice(0, 4));
+      const minY = Math.min(...years), maxY = now.getFullYear();
+      for (let y = minY; y <= maxY; y++) buckets.push({ key: String(y), value: 0, axis: String(y), full: String(y) });
+      sessions.forEach(s => { const b = buckets.find(x => x.key === s.date.slice(0, 4)); if (b) b.value += sessionAmount(s); });
+    } else if (range === 'max') {
+      const sorted = [...sessions].sort((a, b) => a.date < b.date ? -1 : 1);
+      let d = new Date(sorted[0].date + 'T00:00:00'); d = new Date(d.getFullYear(), d.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 1);
+      while (d <= end) {
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        buckets.push({ key, value: 0, axis: d.getMonth() === 0 ? `'${String(d.getFullYear()).slice(-2)}` : MONATE_SHORT[d.getMonth()], full: `${MONATE_LANG[d.getMonth()]} ${d.getFullYear()}` });
+        d.setMonth(d.getMonth() + 1);
+      }
+      sessions.forEach(s => { const b = buckets.find(x => x.key === s.date.slice(0, 7)); if (b) b.value += sessionAmount(s); });
+    } else { // monat -> last 12 months
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        buckets.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, value: 0, axis: MONATE_SHORT[d.getMonth()], full: `${MONATE_LANG[d.getMonth()]} ${d.getFullYear()}` });
+      }
+      sessions.forEach(s => { const b = buckets.find(x => x.key === s.date.slice(0, 7)); if (b) b.value += sessionAmount(s); });
+    }
+    return buckets;
+  }
+
+  function buildLineSVG(buckets) {
+    const W = 320, H = 120, padY = 8;
+    const n = buckets.length;
+    const max = Math.max(...buckets.map(b => b.value), 1);
+    const xs = [], ys = [];
+    buckets.forEach((b, i) => {
+      xs.push(n === 1 ? W / 2 : (i / (n - 1)) * W);
+      ys.push(H - padY - (b.value / max) * (H - 2 * padY));
+    });
+    chartState.xs = xs; chartState.ys = ys; chartState.W = W; chartState.H = H;
+    const line = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(' ');
+    const area = `${line} L ${xs[n - 1].toFixed(1)} ${H} L ${xs[0].toFixed(1)} ${H} Z`;
+    return `<svg class="rev-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <defs><linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.28"/>
+        <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+      </linearGradient></defs>
+      <path d="${area}" fill="url(#revGrad)"/>
+      <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>`;
+  }
+
+  function placeChartCursor(i) {
+    const wrapEl = document.getElementById('revChartWrap');
+    if (!wrapEl || !chartState.xs.length) return;
+    const h = wrapEl.clientHeight;
+    const dot = document.getElementById('chartDot');
+    const guide = document.getElementById('chartGuide');
+    const leftPct = chartState.xs[i] / chartState.W * 100;
+    const topPx = chartState.ys[i] / chartState.H * h;
+    if (dot) { dot.style.left = leftPct + '%'; dot.style.top = topPx + 'px'; }
+    if (guide) guide.style.left = leftPct + '%';
+  }
+
+  function attachScrub() {
+    const wrapEl = document.getElementById('revChartWrap');
+    if (!wrapEl) return;
+    const n = chartState.buckets.length;
+    const valEl = document.getElementById('chartValue');
+    const subEl = document.getElementById('chartSub');
+    const guide = document.getElementById('chartGuide');
+    function reset() {
+      valEl.textContent = fmtEuroRound(chartState.total);
+      subEl.textContent = chartState.label;
+      if (guide) guide.style.opacity = '0';
+      placeChartCursor(n - 1);
+    }
+    function scrub(clientX) {
+      const r = wrapEl.getBoundingClientRect();
+      let ratio = (clientX - r.left) / r.width;
+      ratio = Math.max(0, Math.min(1, ratio));
+      const i = Math.round(ratio * (n - 1));
+      const b = chartState.buckets[i];
+      valEl.textContent = fmtEuroRound(b.value);
+      subEl.textContent = b.full;
+      if (guide) guide.style.opacity = '1';
+      placeChartCursor(i);
+    }
+    wrapEl.addEventListener('pointerdown', e => scrub(e.clientX));
+    wrapEl.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons > 0) scrub(e.clientX); });
+    wrapEl.addEventListener('pointerleave', reset);
+    wrapEl.addEventListener('pointerup', reset);
+    reset();
+  }
+
+  function renderAnalytics() {
+    const wrap = document.getElementById('analyticsContent');
+    if (!wrap) return;
+
+    if (!sessions.length) {
+      wrap.innerHTML = `<div class="empty"><div class="em-title">Noch keine Daten.</div><div>Sobald du Einheiten erfasst, siehst du hier deine Entwicklung.</div></div>`;
+      return;
+    }
+
+    const now = new Date();
+    const curKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    // Totals for mini-stats
+    let totalRev = 0, totalMin = 0, curRev = 0, curMin = 0;
+    sessions.forEach(s => {
+      const amt = sessionAmount(s);
+      totalRev += amt; totalMin += s.duration;
+      if (s.date.slice(0, 7) === curKey) { curRev += amt; curMin += s.duration; }
+    });
+    const totalHours = totalMin / 60;
+    const avgRate = totalHours > 0 ? totalRev / totalHours : 0;
+    const sortedDates = sessions.map(s => new Date(s.date + 'T00:00:00')).sort((a, b) => a - b);
+    const weeksSpan = Math.max(1, Math.ceil((now - sortedDates[0]) / (7 * 24 * 3600 * 1000)));
+    const avgHoursWeek = totalHours / weeksSpan;
+
+    // --- Revenue chart ---
+    const buckets = computeChartData(chartRange);
+    chartState.buckets = buckets;
+    chartState.total = buckets.reduce((t, b) => t + b.value, 0);
+    chartState.label = { tag: 'Letzte 30 Tage', monat: 'Letzte 12 Monate', jahr: 'Umsatz pro Jahr', max: 'Gesamt' }[chartRange];
+    const svg = buildLineSVG(buckets);
+    const axisPts = buckets.length >= 3 ? [buckets[0], buckets[Math.floor(buckets.length / 2)], buckets[buckets.length - 1]] : buckets;
+    const axisHtml = axisPts.map(b => `<span>${b.axis}</span>`).join('');
+    const rangeTabs = [['tag', 'Tag'], ['monat', 'Monat'], ['jahr', 'Jahr'], ['max', 'Max']]
+      .map(([r, l]) => `<button class="range-tab ${chartRange === r ? 'active' : ''}" data-range="${r}">${l}</button>`).join('');
+
+    // --- Hours per day (selectable week) ---
+    const monday = getMonday(weekOffset);
+    const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6);
+    const dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    const days = [];
+    for (let i = 0; i < 7; i++) { const d = new Date(monday); d.setDate(d.getDate() + i); days.push({ key: isoFromDate(d), label: dayLabels[i], hours: 0 }); }
+    sessions.forEach(s => { const b = days.find(x => x.key === s.date); if (b) b.hours += s.duration / 60; });
+    const maxDayH = Math.max(...days.map(d => d.hours), 1);
+    const todayKey = todayISO();
+    const weekHours = days.reduce((t, d) => t + d.hours, 0);
+    const dayBars = days.map(d => {
+      const pct = d.hours > 0 ? Math.max(6, Math.round(d.hours / maxDayH * 100)) : 0;
+      return `<div class="bar-col ${d.hours === 0 ? 'is-empty' : ''} ${d.key === todayKey ? 'current' : ''}">
+        <div class="bar-val">${d.hours > 0 ? fmtHoursShort(d.hours) : '–'}</div>
+        <div class="bar-track"><div class="bar-fill" style="height:${pct}%"></div></div>
+        <div class="bar-label">${d.label}</div>
+      </div>`;
+    }).join('');
+    const weekLabel = weekOffset === 0 ? 'Diese Woche' : weekOffset === -1 ? 'Letzte Woche'
+      : `${monday.getDate()}.${monday.getMonth() + 1}. – ${sunday.getDate()}.${sunday.getMonth() + 1}.`;
+
+    // --- Top students for selected month ---
+    const tm = new Date(now.getFullYear(), now.getMonth() - topMonthOffset, 1);
+    const tmKey = `${tm.getFullYear()}-${String(tm.getMonth() + 1).padStart(2, '0')}`;
+    const monthLabel = topMonthOffset === 0 ? 'Diesen Monat' : `${MONATE_LANG[tm.getMonth()]} ${tm.getFullYear()}`;
+    const perStudent = {};
+    sessions.filter(s => s.date.slice(0, 7) === tmKey).forEach(s => {
+      const p = perStudent[s.studentId] || (perStudent[s.studentId] = { rev: 0, min: 0, count: 0 });
+      p.rev += sessionAmount(s); p.min += s.duration; p.count++;
+    });
+    const ranked = Object.entries(perStudent)
+      .map(([id, v]) => ({ st: studentById(id), ...v }))
+      .filter(x => x.st).sort((a, b) => b.rev - a.rev);
+    const rankRows = ranked.map((r, idx) => `
+      <div class="rank-row ${idx === 0 ? 'top' : ''}">
+        <div class="rank-badge">${idx + 1}</div>
+        <div class="rank-info">
+          <div class="rank-name">${escapeHtml(r.st.name)}</div>
+          <div class="rank-meta">${r.count} Einheit${r.count !== 1 ? 'en' : ''} · ${fmtHours(r.min / 60)}</div>
+        </div>
+        <div class="rank-amount">${fmtEuroRound(r.rev)}</div>
+      </div>`).join('');
+
+    wrap.innerHTML = `
+      <div class="a-card chart-card">
+        <div class="chart-readout">
+          <div class="chart-value" id="chartValue">0 €</div>
+          <div class="chart-sub" id="chartSub"></div>
+        </div>
+        <div class="chart-wrap" id="revChartWrap">
+          ${svg}
+          <div class="chart-guide" id="chartGuide"></div>
+          <div class="chart-dot" id="chartDot"></div>
+        </div>
+        <div class="chart-xaxis">${axisHtml}</div>
+        <div class="range-tabs">${rangeTabs}</div>
+      </div>
+      <div class="mini-stats">
+        <div class="mini-stat">
+          <div class="mini-label">Ø Stundenlohn</div>
+          <div class="mini-value">${formatEuro(Math.round(avgRate * 10) / 10).replace(' €', '')}<span class="unit"> €/h</span></div>
+        </div>
+        <div class="mini-stat">
+          <div class="mini-label">Ø pro Woche</div>
+          <div class="mini-value">${fmtHoursShort(avgHoursWeek)}<span class="unit"> h</span></div>
+        </div>
+        <div class="mini-stat">
+          <div class="mini-label">Diesen Monat</div>
+          <div class="mini-value">${fmtHoursShort(curMin / 60)}<span class="unit"> h</span></div>
+          <div class="mini-sub">${fmtEuroRound(curRev)}</div>
+        </div>
+        <div class="mini-stat">
+          <div class="mini-label">Einheiten gesamt</div>
+          <div class="mini-value">${sessions.length}</div>
+          <div class="mini-sub">${fmtHours(totalHours)}</div>
+        </div>
+      </div>
+      <div class="a-card">
+        <div class="switch-head">
+          <div class="a-card-title" style="margin:0">Stunden pro Tag</div>
+          <div class="switcher">
+            <button class="sw-btn" data-week="prev">‹</button>
+            <span class="sw-label">${weekLabel}</span>
+            <button class="sw-btn" data-week="next" ${weekOffset >= 0 ? 'disabled' : ''}>›</button>
+          </div>
+        </div>
+        <div class="bar-chart">${dayBars}</div>
+        <div class="week-total">${weekHours > 0 ? 'Gesamt: ' + fmtHours(weekHours) : 'Keine Einheiten in dieser Woche'}</div>
+      </div>
+      <div class="a-card">
+        <div class="switch-head">
+          <div class="a-card-title" style="margin:0">Top Schüler</div>
+          <div class="switcher">
+            <button class="sw-btn" data-month="prev">‹</button>
+            <span class="sw-label">${monthLabel}</span>
+            <button class="sw-btn" data-month="next" ${topMonthOffset <= 0 ? 'disabled' : ''}>›</button>
+          </div>
+        </div>
+        ${rankRows || '<div class="mini-sub">Keine Einheiten in diesem Monat.</div>'}
+      </div>`;
+
+    // Handlers
+    wrap.querySelectorAll('.range-tab').forEach(b => b.addEventListener('click', () => { chartRange = b.dataset.range; renderAnalytics(); }));
+    wrap.querySelector('[data-week="prev"]').addEventListener('click', () => { weekOffset--; renderAnalytics(); });
+    const wn = wrap.querySelector('[data-week="next"]'); if (wn && !wn.disabled) wn.addEventListener('click', () => { weekOffset++; renderAnalytics(); });
+    wrap.querySelector('[data-month="prev"]').addEventListener('click', () => { topMonthOffset++; renderAnalytics(); });
+    const mn = wrap.querySelector('[data-month="next"]'); if (mn && !mn.disabled) mn.addEventListener('click', () => { topMonthOffset--; renderAnalytics(); });
+    attachScrub();
   }
 
   function renderStats() {
@@ -1120,8 +1487,13 @@ tbody td:last-child { text-align: right; }
       document.getElementById('studentChips').appendChild(c);
     });
     document.querySelectorAll('#durationChips .chip').forEach(ch => {
-      ch.classList.toggle('active', parseInt(ch.dataset.duration, 10) === modalDuration);
+      if (ch.dataset.duration === 'custom') {
+        ch.classList.toggle('active', customDurationMode);
+      } else {
+        ch.classList.toggle('active', !customDurationMode && parseInt(ch.dataset.duration, 10) === modalDuration);
+      }
     });
+    document.getElementById('customDurationWrap').style.display = customDurationMode ? 'block' : 'none';
     document.getElementById('anfahrtRow').classList.toggle('checked', anfahrtChecked);
   }
 
@@ -1137,13 +1509,34 @@ tbody td:last-child { text-align: right; }
     document.getElementById('sessionDate').value = todayISO();
     document.getElementById('sessionRate').value = modalRate;
     modalDuration = 60;
+    customDurationMode = false;
+    document.getElementById('customDurationInput').value = '';
     renderSessionModal();
     updatePreview();
     showModal('sessionModal');
   }
 
   document.querySelectorAll('#durationChips .chip').forEach(ch => {
-    ch.addEventListener('click', () => { modalDuration = parseInt(ch.dataset.duration, 10); renderSessionModal(); updatePreview(); });
+    ch.addEventListener('click', () => {
+      if (ch.dataset.duration === 'custom') {
+        customDurationMode = true;
+        const v = parseInt(document.getElementById('customDurationInput').value, 10);
+        modalDuration = (!isNaN(v) && v > 0) ? v : 0;
+        renderSessionModal();
+        updatePreview();
+        setTimeout(() => document.getElementById('customDurationInput').focus(), 60);
+      } else {
+        customDurationMode = false;
+        modalDuration = parseInt(ch.dataset.duration, 10);
+        renderSessionModal();
+        updatePreview();
+      }
+    });
+  });
+  document.getElementById('customDurationInput').addEventListener('input', e => {
+    const v = parseInt(e.target.value, 10);
+    modalDuration = (!isNaN(v) && v > 0) ? v : 0;
+    updatePreview();
   });
   document.getElementById('sessionRate').addEventListener('input', e => {
     const v = parseFloat(e.target.value);
@@ -1159,6 +1552,7 @@ tbody td:last-child { text-align: right; }
     const date = document.getElementById('sessionDate').value || todayISO();
     const rate = parseFloat(document.getElementById('sessionRate').value);
     if (!modalStudentId) return;
+    if (!modalDuration || modalDuration <= 0) { alert('Bitte eine gültige Dauer eingeben.'); return; }
     if (isNaN(rate) || rate < 0) { alert('Bitte gültigen Stundenlohn eingeben.'); return; }
     const newSession = { id: uid(), studentId: modalStudentId, date, duration: modalDuration, rate, paid: false, anfahrt: anfahrtChecked, abgerechnet: false, createdAt: Date.now() };
     sessions.push(newSession);
@@ -1292,6 +1686,18 @@ tbody td:last-child { text-align: right; }
 
   document.getElementById('fab').addEventListener('click', openSessionModal);
   document.getElementById('addStudentBtn').addEventListener('click', () => openStudentModal());
+
+  // --- Page navigation ---
+  function switchPage(page) {
+    currentPage = page;
+    document.getElementById('overviewPage').style.display = page === 'overview' ? 'block' : 'none';
+    document.getElementById('analyticsPage').style.display = page === 'analytics' ? 'block' : 'none';
+    document.getElementById('fab').style.display = page === 'overview' ? 'flex' : 'none';
+    if (page === 'analytics') renderAnalytics();
+    window.scrollTo(0, 0);
+  }
+  document.getElementById('statsBtn').addEventListener('click', () => switchPage('analytics'));
+  document.getElementById('backToOverviewBtn').addEventListener('click', () => switchPage('overview'));
 
   (function() {
     const el = document.getElementById('filterScroll');
