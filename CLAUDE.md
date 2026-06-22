@@ -22,11 +22,9 @@ Kein Build, kein Bundler, keine Tests, kein npm. Eine Datei editieren (`index.ht
 Single-file PWA: alles in `index.html` (CSS im `<style>`-Block, JS im `<script>`-Block am Ende). Kein Build-System, keine Dependencies außer Supabase JS via CDN.
 
 **Seiten:** `#overviewPage` (Einheiten/CRM) + `#analyticsPage` (Statistik), umgeschaltet via `switchPage(page)` über `#statsBtn` (oben rechts) bzw. `#backToOverviewBtn`. Der FAB ist nur auf der Übersicht sichtbar. `renderAnalytics()` läuft in `render()` mit und berechnet alles client-seitig aus `sessions`:
-- **Kumulativer Umsatz-Chart** (Trade-Republic-Stil, SVG, `buildLineSVG` + `computeCumulative`): laufender Gesamtumsatz, Range-Tabs 1M/6M/1J/Max (`chartRange`), min/max-skaliert (nicht 0-Baseline) damit der Anstieg sichtbar ist. Scrubbing per Pointer (`attachScrub` → liest `chartState`). Headline = Gesamt verdient, Sub = Gewinn im Zeitraum.
-- **Verdienst pro Tag**: € pro Tag Mo–So der gewählten Woche (Screen-Time-Stil), blätterbar via `weekOffset`, Wochen-Gesamt in €.
+- **Verdienst-im-Zeitraum-Chart** (Balken, `computePeriodChart` + `barLabelEuro`): Range-Tabs Tag/Woche/Monat/Jahr/Max (`chartRange`, Default `monat`). Headline = Summe im Zeitraum (heute / diese Woche / …), Sub = Label + Kontext. Buckets je Tab: Tag→letzte 7 Tage, Woche→Mo–So, Monat→Wochen W1–W5, Jahr→12 Monate, Max→pro Jahr. Aktueller Bucket bekommt `.current` (Akzent). Reine CSS-Balken (`.bar-chart`), keine Chart-Library, kein SVG/Scrubbing mehr.
 - **Top Schüler**: Ranking nach Umsatz für den gewählten Monat, blätterbar via `topMonthOffset`.
 - KPI-Kacheln: Ø/Stunde, Ø/Einheit, Diesen Monat (+ Prognose Monatsende), Offen.
-Balken sind reines CSS (`.bar-chart`), der Linienchart ist Inline-SVG — keine Chart-Library.
 
 **Dauer im Session-Modal:** Presets 45/60/90/120/180 Min + Chip `data-duration="custom"` → blendet `#customDurationWrap` ein. State: `modalDuration` (Minuten), `customDurationMode` (bool).
 
@@ -40,6 +38,8 @@ Balken sind reines CSS (`.bar-chart`), der Linienchart ist Inline-SVG — keine 
 - `students` — `{ id text PK, user_id uuid, name text, rate numeric, adresse text }`
 - `sessions` — `{ id text PK, user_id uuid, student_id text FK→students, date text, duration numeric, rate numeric, paid bool, abgerechnet bool, anfahrt bool, created_at timestamptz }`
 - `settings` — `{ user_id uuid PK, iban text }`
+
+**Geräte-lokale Prefs** (`prefs`, localStorage-Key `nh_prefs_v1`, **nicht** in Supabase): `senderName` (Default „Balthasar Beyer"), `defaultRate` (20), `anfahrtCost` (5). Grund: Supabase-MCP ist aktuell read-only, daher keine neuen `settings`-Spalten anlegbar. `sessionAmount`, Rechnung (Absender + Anfahrt) und Neuer-Schüler-Default ziehen aus `prefs`. Wenn geräteübergreifend gewünscht: Spalten `sender_name/default_rate/anfahrt_cost` in `settings` ergänzen und `prefs` in `settings` mergen.
 
 Alle Tabellen haben Row Level Security: `auth.uid() = user_id`. Schreibzugriff nur für den eingeloggten User.
 
@@ -67,7 +67,7 @@ State: `students[]`, `sessions[]`, `settings`, `currentUser`. Nach jeder Mutatio
 - Bezahlt: `paid: true`
 - Abgerechnet: `abgerechnet: true`
 
-`sessionAmount(s)` = `(duration / 60) * rate + (anfahrt ? 5 : 0)`
+`sessionAmount(s)` = `(duration / 60) * rate + (anfahrt ? prefs.anfahrtCost : 0)` (Anfahrt-Kosten konfigurierbar, Default 5 €; Änderung wirkt rückwirkend auf alle Einheiten, da nicht pro Session gespeichert)
 
 **Filter-State:**
 - `activeFilter`: `'all'` oder Student-ID
@@ -77,14 +77,14 @@ State: `students[]`, `sessions[]`, `settings`, `currentUser`. Nach jeder Mutatio
 
 ## Rechnungen
 
-- **Text-Rechnung** (`buildInvoiceText` + `openInvoiceModal`): Kopierbarer Plaintext. Markiert Sessions als `abgerechnet: true` via `dbMarkAbgerechnet`.
-- **PDF-Rechnung** (`generiereRechnung`): Öffnet `window.open('', '_blank')` mit vollständigem HTML-Dokument, ruft `window.print()` auf. Rechnungsnummer-Counter bleibt in localStorage (`nh_rechnungsNummer_counter`) — einzige verbleibende localStorage-Nutzung.
+- **Aktiver Pfad: PDF-Rechnung** — `#detailPdfBtn` → `openPdfInvoiceModal` (Empfänger/Anrede/Rechnungsnr. + Einheiten-Auswahl, offene vorausgewählt) → `generateInvoiceHtml` → `window.open(blob)` mit Druck-Button. Absender-Name + IBAN kommen aus `prefs.senderName` bzw. `settings.iban` (Fallback `PDF_STAMM`). **Anfahrt** wird als Sammelposition am Tabellenende ausgewiesen (`Anfahrt (N× X €)`) und in `gesamtCents` eingerechnet. Rechnungsnummer-Counter in localStorage (`nh_rechnungsNummer_counter`).
+- **Toter Code** (nicht verdrahtet, kann bei Gelegenheit raus): `generiereRechnung` + `getNextRechnungsNummer` (alte Download-PDF), `openInvoiceModal` + `buildInvoiceText` + `#invoiceModal` (alte Text-Rechnung), `dbMarkAbgerechnet`.
 
 **Modals:** `showModal(id)` / `hideModal(id)` via CSS-Klasse `.visible`. Overlay-Click schließt alle. Modals: `sessionModal`, `studentModal`, `settingsModal`, `invoiceModal`.
 
 ## PWA / Service Worker
 
-- `manifest.json` + `sw.js` — Cache-Name `nachhilfe-v1`
+- `manifest.json` + `sw.js` — Cache-Name `nachhilfe-v6` (bei jeder Asset-Änderung hochzählen)
 - SW cached: `./`, `./index.html`, `./icon.png`, `./manifest.json`
 - **Wichtig:** Bei Asset-Änderungen Cache-Name in `sw.js` erhöhen (z.B. `nachhilfe-v2`), sonst bekommen Nutzer die alte Version aus dem Cache.
 - `safe-area-inset-*` CSS-Variablen für iPhone-Notch/Home-Indicator

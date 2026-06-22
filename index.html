@@ -566,7 +566,7 @@
         </svg>
       </div>
       <span class="anfahrt-label">Anfahrt</span>
-      <span class="anfahrt-price">+5 €</span>
+      <span class="anfahrt-price" id="anfahrtPrice">+5 €</span>
     </div>
     <div class="modal-actions">
       <button class="btn btn-primary" id="saveSession">Speichern</button>
@@ -640,9 +640,27 @@
   <div class="modal" id="settingsModal">
     <div class="modal-handle"></div>
     <h2 class="modal-title">Einstellungen</h2>
-    <div class="modal-subtitle">Bankdaten für Rechnungen</div>
+    <div class="modal-subtitle">Absender & Standardwerte für Rechnungen</div>
+    <div class="field-label">Name (Absender)</div>
+    <input type="text" id="settingsSender" placeholder="Balthasar Beyer" autocomplete="off">
     <div class="field-label">IBAN</div>
     <input type="text" id="settingsIban" placeholder="DE89 7005 4306 0011 5083 22" autocomplete="off">
+    <div class="field-row" style="margin-top:0">
+      <div>
+        <div class="field-label">Standard-Stundenlohn</div>
+        <div class="input-wrap">
+          <input type="number" id="settingsDefaultRate" inputmode="numeric" min="0" step="1" placeholder="20">
+          <span class="suffix">€ / h</span>
+        </div>
+      </div>
+      <div>
+        <div class="field-label">Anfahrt-Kosten</div>
+        <div class="input-wrap">
+          <input type="number" id="settingsAnfahrt" inputmode="numeric" min="0" step="1" placeholder="5">
+          <span class="suffix">€</span>
+        </div>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-primary" id="saveSettings">Speichern</button>
       <button class="btn btn-secondary" id="cancelSettings">Abbrechen</button>
@@ -665,10 +683,31 @@
 
   const INVOICE_COUNTER_KEY = 'nh_rechnungsNummer_counter';
 
+  const PREFS_KEY = 'nh_prefs_v1';
+
   let currentUser = null;
   let students = [];
   let sessions = [];
   let settings = { iban: '' };
+  // Geräte-lokale Einstellungen (Absender, Standardwerte) — Supabase-MCP ist read-only,
+  // daher localStorage statt eigener settings-Spalten.
+  let prefs = loadPrefs();
+  function loadPrefs() {
+    const def = { senderName: 'Balthasar Beyer', defaultRate: 20, anfahrtCost: 5 };
+    try {
+      const raw = localStorage.getItem(PREFS_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        return {
+          senderName: (p.senderName || '').trim() || def.senderName,
+          defaultRate: Number(p.defaultRate) >= 0 ? Number(p.defaultRate) : def.defaultRate,
+          anfahrtCost: Number(p.anfahrtCost) >= 0 ? Number(p.anfahrtCost) : def.anfahrtCost,
+        };
+      }
+    } catch (e) {}
+    return def;
+  }
+  function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} }
   let activeFilter = 'all';
   let statusFilter = 'all';
   let expandedSessionId = null;
@@ -859,7 +898,7 @@
     const d = new Date();
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
-  function sessionAmount(s) { return (s.duration / 60) * s.rate + (s.anfahrt ? 5 : 0); }
+  function sessionAmount(s) { return (s.duration / 60) * s.rate + (s.anfahrt ? prefs.anfahrtCost : 0); }
   function uid() { return Math.random().toString(36).slice(2, 10); }
   function studentById(id) { return students.find(s => s.id === id); }
   function escapeHtml(str) {
@@ -1077,122 +1116,81 @@ tbody td:last-child { text-align: right; }
     return d;
   }
 
-  let chartRange = 'max';
-  let weekOffset = 0;
+  let chartRange = 'monat';
   let topMonthOffset = 0;
-  const chartState = { xs: [], ys: [], W: 320, H: 120, buckets: [], total: 0, label: '' };
 
-  // Cumulative (running total) revenue over the selected window — Trade-Republic style
-  function computeCumulative(range) {
+  function barLabelEuro(eur) {
+    if (eur <= 0) return '–';
+    if (eur >= 1000) return (Math.round(eur / 100) / 10).toString().replace('.', ',') + 'k';
+    return String(Math.round(eur));
+  }
+
+  // Verdienst im gewählten Zeitraum als Balken-Aufschlüsselung
+  function computePeriodChart(range) {
     const now = new Date(); now.setHours(0, 0, 0, 0);
-    const sorted = [...sessions].sort((a, b) => a.date < b.date ? -1 : 1);
-    function cumUpTo(iso) {
-      let t = 0;
-      for (const s of sorted) { if (s.date <= iso) t += sessionAmount(s); else break; }
-      return t;
-    }
-    const points = [];
-    let windowStartIso;
-    if (range === '1m') {
-      for (let i = 29; i >= 0; i--) {
+    const todayIso = isoFromDate(now);
+    const eurOn = iso => sessions.reduce((t, s) => s.date === iso ? t + sessionAmount(s) : t, 0);
+    let buckets = [], headline = 0, label = '', sub = '';
+
+    if (range === 'tag') {
+      const dl = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+      for (let i = 6; i >= 0; i--) {
         const d = new Date(now); d.setDate(d.getDate() - i); const iso = isoFromDate(d);
-        points.push({ key: iso, value: cumUpTo(iso), axis: `${d.getDate()}.${d.getMonth() + 1}.`, full: formatDateShort(iso) });
+        buckets.push({ label: dl[d.getDay()], eur: eurOn(iso), current: iso === todayIso });
       }
-      windowStartIso = points[0].key;
-    } else if (range === '6m') {
-      for (let i = 25; i >= 0; i--) {
-        const d = new Date(now); d.setDate(d.getDate() - i * 7); const iso = isoFromDate(d);
-        points.push({ key: iso, value: cumUpTo(iso), axis: `${d.getDate()}.${d.getMonth() + 1}.`, full: formatDateShort(iso) });
+      headline = eurOn(todayIso);
+      label = 'Heute';
+      sub = 'Letzte 7 Tage';
+    } else if (range === 'woche') {
+      const monday = getMonday(0);
+      const dl = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday); d.setDate(d.getDate() + i); const iso = isoFromDate(d);
+        buckets.push({ label: dl[i], eur: eurOn(iso), current: iso === todayIso });
       }
-      windowStartIso = points[0].key;
-    } else if (range === '1j') {
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        const iso = isoFromDate(last > now ? now : last);
-        points.push({ key: iso, value: cumUpTo(iso), axis: MONATE_SHORT[d.getMonth()], full: `${MONATE_LANG[d.getMonth()]} ${d.getFullYear()}` });
-      }
-      windowStartIso = isoFromDate(new Date(now.getFullYear(), now.getMonth() - 11, 1));
-    } else { // max -> monthly from first session to now
-      const first = new Date(sorted[0].date + 'T00:00:00');
-      let d = new Date(first.getFullYear(), first.getMonth(), 1);
-      const endMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      while (d <= endMonth) {
-        const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        const iso = isoFromDate(last > now ? now : last);
-        points.push({ key: iso, value: cumUpTo(iso), axis: d.getMonth() === 0 ? `'${String(d.getFullYear()).slice(-2)}` : MONATE_SHORT[d.getMonth()], full: `${MONATE_LANG[d.getMonth()]} ${d.getFullYear()}` });
-        d.setMonth(d.getMonth() + 1);
-      }
-      windowStartIso = sorted[0].date;
+      headline = buckets.reduce((t, b) => t + b.eur, 0);
+      label = 'Diese Woche';
+      const sun = new Date(monday); sun.setDate(sun.getDate() + 6);
+      sub = `${monday.getDate()}.${monday.getMonth() + 1}. – ${sun.getDate()}.${sun.getMonth() + 1}.`;
+    } else if (range === 'monat') {
+      const y = now.getFullYear(), m = now.getMonth();
+      const mk = `${y}-${String(m + 1).padStart(2, '0')}`;
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const numWeeks = Math.ceil(daysInMonth / 7);
+      const sums = new Array(numWeeks).fill(0);
+      sessions.forEach(s => {
+        if (s.date.slice(0, 7) === mk) {
+          const day = parseInt(s.date.slice(8, 10), 10);
+          sums[Math.min(numWeeks - 1, Math.floor((day - 1) / 7))] += sessionAmount(s);
+        }
+      });
+      const curWeek = Math.floor((now.getDate() - 1) / 7);
+      for (let w = 0; w < numWeeks; w++) buckets.push({ label: 'W' + (w + 1), eur: sums[w], current: w === curWeek });
+      headline = sums.reduce((t, v) => t + v, 0);
+      label = 'Dieser Monat';
+      sub = `${MONATE_LANG[m]} ${y}`;
+    } else if (range === 'jahr') {
+      const y = now.getFullYear();
+      const sums = new Array(12).fill(0);
+      sessions.forEach(s => { if (s.date.slice(0, 4) === String(y)) sums[parseInt(s.date.slice(5, 7), 10) - 1] += sessionAmount(s); });
+      for (let i = 0; i < 12; i++) buckets.push({ label: MONATE_SHORT[i], eur: sums[i], current: i === now.getMonth() });
+      headline = sums.reduce((t, v) => t + v, 0);
+      label = 'Dieses Jahr';
+      sub = String(y);
+    } else { // max -> pro Jahr
+      const sums = {};
+      let minY = now.getFullYear(), maxY = now.getFullYear();
+      sessions.forEach(s => {
+        const yy = parseInt(s.date.slice(0, 4), 10);
+        sums[yy] = (sums[yy] || 0) + sessionAmount(s);
+        if (yy < minY) minY = yy; if (yy > maxY) maxY = yy;
+      });
+      for (let yy = minY; yy <= maxY; yy++) buckets.push({ label: "'" + String(yy).slice(-2), eur: sums[yy] || 0, current: yy === now.getFullYear() });
+      headline = Object.values(sums).reduce((t, v) => t + v, 0);
+      label = 'Gesamt';
+      sub = minY === maxY ? String(minY) : `seit ${minY}`;
     }
-    return { points, windowStartIso };
-  }
-
-  function buildLineSVG(buckets) {
-    const W = 320, H = 120, padY = 10;
-    const n = buckets.length;
-    const vals = buckets.map(b => b.value);
-    const min = Math.min(...vals), max = Math.max(...vals);
-    const span = (max - min) || 1;
-    const xs = [], ys = [];
-    buckets.forEach((b, i) => {
-      xs.push(n === 1 ? W / 2 : (i / (n - 1)) * W);
-      ys.push(H - padY - ((b.value - min) / span) * (H - 2 * padY));
-    });
-    chartState.xs = xs; chartState.ys = ys; chartState.W = W; chartState.H = H;
-    const line = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(' ');
-    const area = `${line} L ${xs[n - 1].toFixed(1)} ${H} L ${xs[0].toFixed(1)} ${H} Z`;
-    return `<svg class="rev-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-      <defs><linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.28"/>
-        <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
-      </linearGradient></defs>
-      <path d="${area}" fill="url(#revGrad)"/>
-      <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-    </svg>`;
-  }
-
-  function placeChartCursor(i) {
-    const wrapEl = document.getElementById('revChartWrap');
-    if (!wrapEl || !chartState.xs.length) return;
-    const h = wrapEl.clientHeight;
-    const dot = document.getElementById('chartDot');
-    const guide = document.getElementById('chartGuide');
-    const leftPct = chartState.xs[i] / chartState.W * 100;
-    const topPx = chartState.ys[i] / chartState.H * h;
-    if (dot) { dot.style.left = leftPct + '%'; dot.style.top = topPx + 'px'; }
-    if (guide) guide.style.left = leftPct + '%';
-  }
-
-  function attachScrub() {
-    const wrapEl = document.getElementById('revChartWrap');
-    if (!wrapEl) return;
-    const n = chartState.buckets.length;
-    const valEl = document.getElementById('chartValue');
-    const subEl = document.getElementById('chartSub');
-    const guide = document.getElementById('chartGuide');
-    function reset() {
-      valEl.textContent = fmtEuroRound(chartState.total);
-      subEl.textContent = chartState.label;
-      if (guide) guide.style.opacity = '0';
-      placeChartCursor(n - 1);
-    }
-    function scrub(clientX) {
-      const r = wrapEl.getBoundingClientRect();
-      let ratio = (clientX - r.left) / r.width;
-      ratio = Math.max(0, Math.min(1, ratio));
-      const i = Math.round(ratio * (n - 1));
-      const b = chartState.buckets[i];
-      valEl.textContent = fmtEuroRound(b.value);
-      subEl.textContent = b.full;
-      if (guide) guide.style.opacity = '1';
-      placeChartCursor(i);
-    }
-    wrapEl.addEventListener('pointerdown', e => scrub(e.clientX));
-    wrapEl.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons > 0) scrub(e.clientX); });
-    wrapEl.addEventListener('pointerleave', reset);
-    wrapEl.addEventListener('pointerup', reset);
-    reset();
+    return { buckets, headline, label, sub };
   }
 
   function renderAnalytics() {
@@ -1222,39 +1220,19 @@ tbody td:last-child { text-align: right; }
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const forecast = now.getDate() > 0 ? curRev / now.getDate() * daysInMonth : 0;
 
-    // --- Cumulative revenue chart ---
-    const { points, windowStartIso } = computeCumulative(chartRange);
-    chartState.buckets = points;
-    chartState.total = points.length ? points[points.length - 1].value : 0;
-    const gain = sessions.filter(s => s.date >= windowStartIso).reduce((t, s) => t + sessionAmount(s), 0);
-    const rangeWord = { '1m': '30 Tage', '6m': '6 Monate', '1j': '12 Monate', max: 'Gesamt' }[chartRange];
-    chartState.label = (chartRange !== 'max' && gain > 0) ? `+${fmtEuroRound(gain)} · ${rangeWord}` : 'Gesamt verdient';
-    const svg = buildLineSVG(points);
-    const axisPts = points.length >= 3 ? [points[0], points[Math.floor(points.length / 2)], points[points.length - 1]] : points;
-    const axisHtml = axisPts.map(b => `<span>${b.axis}</span>`).join('');
-    const rangeTabs = [['1m', '1M'], ['6m', '6M'], ['1j', '1J'], ['max', 'Max']]
-      .map(([r, l]) => `<button class="range-tab ${chartRange === r ? 'active' : ''}" data-range="${r}">${l}</button>`).join('');
-
-    // --- Earnings per day (selectable week, screen-time style) ---
-    const monday = getMonday(weekOffset);
-    const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6);
-    const dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-    const days = [];
-    for (let i = 0; i < 7; i++) { const d = new Date(monday); d.setDate(d.getDate() + i); days.push({ key: isoFromDate(d), label: dayLabels[i], eur: 0 }); }
-    sessions.forEach(s => { const b = days.find(x => x.key === s.date); if (b) b.eur += sessionAmount(s); });
-    const maxDayEur = Math.max(...days.map(d => d.eur), 1);
-    const todayKey = todayISO();
-    const weekTotal = days.reduce((t, d) => t + d.eur, 0);
-    const dayBars = days.map(d => {
-      const pct = d.eur > 0 ? Math.max(6, Math.round(d.eur / maxDayEur * 100)) : 0;
-      return `<div class="bar-col ${d.eur === 0 ? 'is-empty' : ''} ${d.key === todayKey ? 'current' : ''}">
-        <div class="bar-val">${d.eur > 0 ? fmtEuroRound(d.eur) : '–'}</div>
+    // --- Verdienst im Zeitraum (Balken-Aufschlüsselung) ---
+    const period = computePeriodChart(chartRange);
+    const maxBarEur = Math.max(...period.buckets.map(b => b.eur), 1);
+    const periodBars = period.buckets.map(b => {
+      const pct = b.eur > 0 ? Math.max(6, Math.round(b.eur / maxBarEur * 100)) : 0;
+      return `<div class="bar-col ${b.eur === 0 ? 'is-empty' : ''} ${b.current ? 'current' : ''}">
+        <div class="bar-val">${barLabelEuro(b.eur)}</div>
         <div class="bar-track"><div class="bar-fill" style="height:${pct}%"></div></div>
-        <div class="bar-label">${d.label}</div>
+        <div class="bar-label">${b.label}</div>
       </div>`;
     }).join('');
-    const weekLabel = weekOffset === 0 ? 'Diese Woche' : weekOffset === -1 ? 'Letzte Woche'
-      : `${monday.getDate()}.${monday.getMonth() + 1}. – ${sunday.getDate()}.${sunday.getMonth() + 1}.`;
+    const rangeTabs = [['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat'], ['jahr', 'Jahr'], ['max', 'Max']]
+      .map(([r, l]) => `<button class="range-tab ${chartRange === r ? 'active' : ''}" data-range="${r}">${l}</button>`).join('');
 
     // --- Top students for selected month ---
     const tm = new Date(now.getFullYear(), now.getMonth() - topMonthOffset, 1);
@@ -1280,17 +1258,12 @@ tbody td:last-child { text-align: right; }
 
     wrap.innerHTML = `
       <div class="a-card chart-card">
+        <div class="range-tabs" style="margin-top:0;margin-bottom:18px">${rangeTabs}</div>
         <div class="chart-readout">
-          <div class="chart-value" id="chartValue">0 €</div>
-          <div class="chart-sub" id="chartSub"></div>
+          <div class="chart-value">${fmtEuroRound(period.headline)}</div>
+          <div class="chart-sub">${period.label} · ${period.sub}</div>
         </div>
-        <div class="chart-wrap" id="revChartWrap">
-          ${svg}
-          <div class="chart-guide" id="chartGuide"></div>
-          <div class="chart-dot" id="chartDot"></div>
-        </div>
-        <div class="chart-xaxis">${axisHtml}</div>
-        <div class="range-tabs">${rangeTabs}</div>
+        <div class="bar-chart">${periodBars}</div>
       </div>
       <div class="mini-stats">
         <div class="mini-stat">
@@ -1314,18 +1287,6 @@ tbody td:last-child { text-align: right; }
       </div>
       <div class="a-card">
         <div class="switch-head">
-          <div class="a-card-title" style="margin:0">Verdienst pro Tag</div>
-          <div class="switcher">
-            <button class="sw-btn" data-week="prev">‹</button>
-            <span class="sw-label">${weekLabel}</span>
-            <button class="sw-btn" data-week="next" ${weekOffset >= 0 ? 'disabled' : ''}>›</button>
-          </div>
-        </div>
-        <div class="bar-chart">${dayBars}</div>
-        <div class="week-total">${weekTotal > 0 ? 'Gesamt: ' + fmtEuroRound(weekTotal) : 'Keine Einheiten in dieser Woche'}</div>
-      </div>
-      <div class="a-card">
-        <div class="switch-head">
           <div class="a-card-title" style="margin:0">Top Schüler</div>
           <div class="switcher">
             <button class="sw-btn" data-month="prev">‹</button>
@@ -1338,11 +1299,8 @@ tbody td:last-child { text-align: right; }
 
     // Handlers
     wrap.querySelectorAll('.range-tab').forEach(b => b.addEventListener('click', () => { chartRange = b.dataset.range; renderAnalytics(); }));
-    wrap.querySelector('[data-week="prev"]').addEventListener('click', () => { weekOffset--; renderAnalytics(); });
-    const wn = wrap.querySelector('[data-week="next"]'); if (wn && !wn.disabled) wn.addEventListener('click', () => { weekOffset++; renderAnalytics(); });
     wrap.querySelector('[data-month="prev"]').addEventListener('click', () => { topMonthOffset++; renderAnalytics(); });
     const mn = wrap.querySelector('[data-month="next"]'); if (mn && !mn.disabled) mn.addEventListener('click', () => { topMonthOffset--; renderAnalytics(); });
-    attachScrub();
   }
 
   function renderStats() {
@@ -1512,10 +1470,11 @@ tbody td:last-child { text-align: right; }
     });
     document.getElementById('customDurationWrap').style.display = customDurationMode ? 'block' : 'none';
     document.getElementById('anfahrtRow').classList.toggle('checked', anfahrtChecked);
+    document.getElementById('anfahrtPrice').textContent = `+${prefs.anfahrtCost} €`;
   }
 
   function updatePreview() {
-    const total = (modalDuration / 60) * modalRate + (anfahrtChecked ? 5 : 0);
+    const total = (modalDuration / 60) * modalRate + (anfahrtChecked ? prefs.anfahrtCost : 0);
     document.getElementById('previewAmount').textContent = formatEuro(total);
   }
 
@@ -1588,7 +1547,7 @@ tbody td:last-child { text-align: right; }
     document.getElementById('studentModalTitle').textContent = st ? 'Schüler bearbeiten' : 'Neuer Schüler';
     document.getElementById('studentModalSubtitle').textContent = st ? 'Name, Stundenlohn und Adresse' : 'Name und Standard Stundenlohn';
     document.getElementById('newStudentName').value = st ? st.name : '';
-    document.getElementById('newStudentRate').value = st ? st.rate : 20;
+    document.getElementById('newStudentRate').value = st ? st.rate : prefs.defaultRate;
     document.getElementById('newStudentAdresse').value = st ? (st.adresse || '') : '';
     document.getElementById('deleteStudent').style.display = st ? 'block' : 'none';
     showModal('studentModal');
@@ -1632,13 +1591,25 @@ tbody td:last-child { text-align: right; }
 
   // --- Settings Modal ---
   function openSettingsModal() {
+    document.getElementById('settingsSender').value = prefs.senderName || '';
     document.getElementById('settingsIban').value = settings.iban || '';
+    document.getElementById('settingsDefaultRate').value = prefs.defaultRate;
+    document.getElementById('settingsAnfahrt').value = prefs.anfahrtCost;
     showModal('settingsModal');
     setTimeout(() => document.getElementById('settingsIban').focus(), 300);
   }
   document.getElementById('saveSettings').addEventListener('click', async () => {
     const ibanVal = document.getElementById('settingsIban').value.trim();
     settings.iban = ibanVal;
+    // Geräte-lokale Prefs
+    const senderVal = document.getElementById('settingsSender').value.trim();
+    const rateVal = parseFloat(document.getElementById('settingsDefaultRate').value);
+    const anfahrtVal = parseFloat(document.getElementById('settingsAnfahrt').value);
+    prefs.senderName = senderVal || 'Balthasar Beyer';
+    if (!isNaN(rateVal) && rateVal >= 0) prefs.defaultRate = rateVal;
+    if (!isNaN(anfahrtVal) && anfahrtVal >= 0) prefs.anfahrtCost = anfahrtVal;
+    savePrefs();
+    render();
     const btn = document.getElementById('saveSettings');
     btn.textContent = 'Speichern…';
     btn.disabled = true;
@@ -1841,7 +1812,11 @@ tbody td:last-child { text-align: right; }
       rate: s.rate,
       betragCents: Math.round((s.duration / 60) * s.rate * 100),
     }));
-    const gesamtCents = rows.reduce((sum, r) => sum + r.betragCents, 0);
+    const unterrichtCents = rows.reduce((sum, r) => sum + r.betragCents, 0);
+    const anfahrtEachCents = Math.round(prefs.anfahrtCost * 100);
+    const anfahrtCount = sorted.filter(s => s.anfahrt).length;
+    const anfahrtTotalCents = anfahrtCount * anfahrtEachCents;
+    const gesamtCents = unterrichtCents + anfahrtTotalCents;
     const gesamtMin = rows.reduce((sum, r) => sum + r.minuten, 0);
     const anzahl = rows.length;
 
@@ -1853,6 +1828,15 @@ tbody td:last-child { text-align: right; }
         <td class="r">${r.rate} €/h</td>
         <td class="r">${fmtEuro(r.betragCents)}</td>
       </tr>`).join('');
+
+    const anfahrtRow = anfahrtCount > 0 ? `
+      <tr>
+        <td></td>
+        <td>Anfahrt (${anfahrtCount}× ${prefs.anfahrtCost} €)</td>
+        <td class="r"></td>
+        <td class="r"></td>
+        <td class="r">${fmtEuro(anfahrtTotalCents)}</td>
+      </tr>` : '';
 
     const anredeBlock = anrede
       ? `<div style="color:#555;font-size:10.5pt;">${escapeHtml(anrede)}</div>`
@@ -1900,7 +1884,7 @@ tbody td:last-child { text-align: right; }
 </head>
 <body>
 <button class="print-btn" onclick="window.print()">Drucken / Als PDF</button>
-<div class="hdr">${PDF_STAMM.name} &nbsp;&middot;&nbsp; ${PDF_STAMM.ort} &nbsp;&middot;&nbsp; ${PDF_STAMM.email}</div>
+<div class="hdr">${escapeHtml(prefs.senderName)} &nbsp;&middot;&nbsp; ${PDF_STAMM.ort} &nbsp;&middot;&nbsp; ${PDF_STAMM.email}</div>
 <div class="recipient">
   ${anredeBlock}
   <div class="name">${escapeHtml(empfaenger)}</div>
@@ -1918,6 +1902,7 @@ tbody td:last-child { text-align: right; }
   </thead>
   <tbody>
     ${tableRows}
+    ${anfahrtRow}
     <tr class="gesamt-row">
       <td></td>
       <td>Gesamt (${anzahl} Einheiten&nbsp;/&nbsp;${gesamtMin} Min)</td>
@@ -1934,8 +1919,8 @@ tbody td:last-child { text-align: right; }
 <hr>
 <div class="bank">
   <div class="bank-title">Bankverbindung:</div>
-  <div>Kontoinhaber: ${PDF_STAMM.kontoinhaber}</div>
-  <div>IBAN: ${PDF_STAMM.iban}</div>
+  <div>Kontoinhaber: ${escapeHtml(prefs.senderName)}</div>
+  <div>IBAN: ${escapeHtml(settings.iban || PDF_STAMM.iban)}</div>
   <div>BIC: ${PDF_STAMM.bic}</div>
   <div>Verwendungszweck: ${escapeHtml(schueler)} ${escapeHtml(monatJahr)}</div>
   <div>Bitte &uuml;berweisen bis: <strong>${faelligBis}</strong></div>
