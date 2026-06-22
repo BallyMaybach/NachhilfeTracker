@@ -1,4 +1,4 @@
-const CACHE = 'nachhilfe-v6';
+const CACHE = 'nachhilfe-v7';
 const ASSETS = ['./', './index.html', './icon.png', './manifest.json'];
 
 self.addEventListener('install', e => {

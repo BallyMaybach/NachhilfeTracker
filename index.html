@@ -689,8 +689,9 @@
   let students = [];
   let sessions = [];
   let settings = { iban: '' };
-  // Geräte-lokale Einstellungen (Absender, Standardwerte) — Supabase-MCP ist read-only,
-  // daher localStorage statt eigener settings-Spalten.
+  // Absender + Standardwerte. Quelle der Wahrheit: settings-Spalten in Supabase
+  // (sender_name / default_rate / anfahrt_cost). localStorage dient nur als Offline-Cache
+  // und als Startwert, bevor loadData die DB-Werte übernimmt.
   let prefs = loadPrefs();
   function loadPrefs() {
     const def = { senderName: 'Balthasar Beyer', defaultRate: 20, anfahrtCost: 5 };
@@ -708,6 +709,14 @@
     return def;
   }
   function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} }
+  // Übernimmt die DB-Spalten in prefs (falls vorhanden) und cached sie lokal.
+  function applySettingsToPrefs(row) {
+    if (!row) return;
+    if (row.sender_name) prefs.senderName = row.sender_name;
+    if (row.default_rate !== null && row.default_rate !== undefined && row.default_rate !== '') prefs.defaultRate = Number(row.default_rate);
+    if (row.anfahrt_cost !== null && row.anfahrt_cost !== undefined && row.anfahrt_cost !== '') prefs.anfahrtCost = Number(row.anfahrt_cost);
+    savePrefs();
+  }
   let activeFilter = 'all';
   let statusFilter = 'all';
   let expandedSessionId = null;
@@ -763,6 +772,7 @@
     }));
 
     settings = settingsRes.data ? { iban: settingsRes.data.iban || '' } : { iban: '' };
+    applySettingsToPrefs(settingsRes.data);
 
     if (students.length === 0 && !migrationAttempted) {
       migrationAttempted = true;
@@ -829,6 +839,7 @@
         createdAt: new Date(s.created_at).getTime()
       }));
       settings = settingsRes.data ? { iban: settingsRes.data.iban || '' } : { iban: '' };
+    applySettingsToPrefs(settingsRes.data);
     } catch (e) {
       console.error('Migration failed:', e);
     }
@@ -1601,19 +1612,25 @@ tbody td:last-child { text-align: right; }
   document.getElementById('saveSettings').addEventListener('click', async () => {
     const ibanVal = document.getElementById('settingsIban').value.trim();
     settings.iban = ibanVal;
-    // Geräte-lokale Prefs
     const senderVal = document.getElementById('settingsSender').value.trim();
     const rateVal = parseFloat(document.getElementById('settingsDefaultRate').value);
     const anfahrtVal = parseFloat(document.getElementById('settingsAnfahrt').value);
     prefs.senderName = senderVal || 'Balthasar Beyer';
     if (!isNaN(rateVal) && rateVal >= 0) prefs.defaultRate = rateVal;
     if (!isNaN(anfahrtVal) && anfahrtVal >= 0) prefs.anfahrtCost = anfahrtVal;
-    savePrefs();
+    savePrefs(); // Offline-Cache
     render();
     const btn = document.getElementById('saveSettings');
     btn.textContent = 'Speichern…';
     btn.disabled = true;
+    // IBAN zuerst (Spalte existiert sicher), dann die prefs-Spalten best-effort.
     const { error } = await sb.from('settings').upsert({ user_id: currentUser.id, iban: ibanVal });
+    if (!error) {
+      const { error: prefsErr } = await sb.from('settings')
+        .update({ sender_name: prefs.senderName, default_rate: prefs.defaultRate, anfahrt_cost: prefs.anfahrtCost })
+        .eq('user_id', currentUser.id);
+      if (prefsErr) console.warn('[Settings] sender_name/default_rate/anfahrt_cost noch nicht in DB — SQL-Migration ausführen.', prefsErr.message);
+    }
     btn.disabled = false;
     if (error) {
       console.error('[Settings] IBAN save error:', error.message);

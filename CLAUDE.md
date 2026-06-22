@@ -37,9 +37,9 @@ Single-file PWA: alles in `index.html` (CSS im `<style>`-Block, JS im `<script>`
 **Tabellen:**
 - `students` — `{ id text PK, user_id uuid, name text, rate numeric, adresse text }`
 - `sessions` — `{ id text PK, user_id uuid, student_id text FK→students, date text, duration numeric, rate numeric, paid bool, abgerechnet bool, anfahrt bool, created_at timestamptz }`
-- `settings` — `{ user_id uuid PK, iban text }`
+- `settings` — `{ user_id uuid PK, iban text, sender_name text, default_rate numeric, anfahrt_cost numeric }`
 
-**Geräte-lokale Prefs** (`prefs`, localStorage-Key `nh_prefs_v1`, **nicht** in Supabase): `senderName` (Default „Balthasar Beyer"), `defaultRate` (20), `anfahrtCost` (5). Grund: Supabase-MCP ist aktuell read-only, daher keine neuen `settings`-Spalten anlegbar. `sessionAmount`, Rechnung (Absender + Anfahrt) und Neuer-Schüler-Default ziehen aus `prefs`. Wenn geräteübergreifend gewünscht: Spalten `sender_name/default_rate/anfahrt_cost` in `settings` ergänzen und `prefs` in `settings` mergen.
+**Prefs** (`prefs`-Objekt: `senderName`/`defaultRate`/`anfahrtCost`): Quelle der Wahrheit sind die `settings`-Spalten `sender_name`/`default_rate`/`anfahrt_cost` in Supabase (geräteübergreifend, synct wie die IBAN). localStorage (`nh_prefs_v1`) ist nur Offline-Cache + Startwert vor `loadData`. `loadData` → `applySettingsToPrefs(row)` übernimmt die DB-Werte; der Settings-Save schreibt IBAN per `upsert` und die prefs-Spalten per separatem `update` (best-effort). `sessionAmount`, Rechnung (Absender + Anfahrt) und Neuer-Schüler-Default ziehen aus `prefs`. Defaults: „Balthasar Beyer" / 20 / 5.
 
 Alle Tabellen haben Row Level Security: `auth.uid() = user_id`. Schreibzugriff nur für den eingeloggten User.
 
@@ -84,7 +84,7 @@ State: `students[]`, `sessions[]`, `settings`, `currentUser`. Nach jeder Mutatio
 
 ## PWA / Service Worker
 
-- `manifest.json` + `sw.js` — Cache-Name `nachhilfe-v6` (bei jeder Asset-Änderung hochzählen)
+- `manifest.json` + `sw.js` — Cache-Name `nachhilfe-v7` (bei jeder Asset-Änderung hochzählen)
 - SW cached: `./`, `./index.html`, `./icon.png`, `./manifest.json`
 - **Wichtig:** Bei Asset-Änderungen Cache-Name in `sw.js` erhöhen (z.B. `nachhilfe-v2`), sonst bekommen Nutzer die alte Version aus dem Cache.
 - `safe-area-inset-*` CSS-Variablen für iPhone-Notch/Home-Indicator
