@@ -43,6 +43,8 @@ Single-file PWA: alles in `index.html` (CSS im `<style>`-Block, JS im `<script>`
 
 Alle Tabellen haben Row Level Security: `auth.uid() = user_id`. Schreibzugriff nur für den eingeloggten User.
 
+**Keep-Alive:** Supabase Free Tier pausiert Projekte nach ~1 Woche Inaktivität. `.github/workflows/supabase-keepalive.yml` pingt alle 4 Tage die REST-API (Anon Key, unauthenticated) um das zu verhindern. Bei Bedarf manuell auslösbar über GitHub Actions → "Supabase Keep-Alive" → "Run workflow".
+
 **DB-Operationen** (alle async, Fehler via `dbRun()` geloggt):
 - `dbAddStudent`, `dbUpdateStudent`, `dbDeleteStudent`
 - `dbAddSession`, `dbUpdateSession`, `dbDeleteSession`, `dbMarkAbgerechnet`
